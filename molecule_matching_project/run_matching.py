@@ -62,7 +62,6 @@ def build_cost_matrix(mol1, mol2):
     N = mol2.GetNumAtoms()
     C = np.zeros((M, N))
     
-    # Pre-compute atom features
     features1 = build_atom_features(mol1)
     features2 = build_atom_features(mol2)
     
@@ -71,73 +70,58 @@ def build_cost_matrix(mol1, mol2):
             f1 = features1[i]
             f2 = features2[j]
             
-            # Atomic number mismatch (most important)
             if f1['atomic_num'] != f2['atomic_num']:
                 C[i, j] += 100
             
-            # Degree mismatch
             C[i, j] += abs(f1['degree'] - f2['degree']) * 10
             
-            # Ring membership mismatch
             if f1['is_in_ring'] != f2['is_in_ring']:
                 C[i, j] += 5
             
-            # Charge mismatch
             C[i, j] += abs(f1['charge'] - f2['charge']) * 20
     
     return C
 
+def get_adj(mol):
+    """Get adjacency matrix from molecule"""
+    n = mol.GetNumAtoms()
+    mat = np.zeros((n, n), dtype=np.float32)
+    for bond in mol.GetBonds():
+        i = bond.GetBeginAtomIdx()
+        j = bond.GetEndAtomIdx()
+        mat[i, j] = 1
+        mat[j, i] = 1
+    return mat
+
 def find_common_substructure(mol1, mol2, L=None):
-    """
-    Find the most similar substructure between two molecules
-    """
+    """Find the most similar substructure between two molecules"""
     M = mol1.GetNumAtoms()
     N = mol2.GetNumAtoms()
     
-    # Set L (number of matches to find)
     if L is None:
-        L = min(M, N) - 2  # Leave some outliers
-    
-    # Build adjacency matrices
-    def get_adj(mol):
-        n = mol.GetNumAtoms()
-        mat = np.zeros((n, n), dtype=np.float32)
-        for bond in mol.GetBonds():
-            i = bond.GetBeginAtomIdx()
-            j = bond.GetEndAtomIdx()
-            mat[i, j] = 1
-            mat[j, i] = 1
-        return mat
+        L = min(M, N) - 2
     
     A1 = get_adj(mol1)
     A2 = get_adj(mol2)
-    
-    # Build cost matrix
     C = build_cost_matrix(mol1, mol2)
     
-    # Normalize cost matrix
     C = (C - C.min()) / (C.max() - C.min() + 1e-8)
     
-    # Run greedy matching
     matches = greedy_matching(A1, A2, C, L)
-    
     return matches
 
 def greedy_matching(A1, A2, C, L):
     """Greedy algorithm for finding best matches"""
     M, N = A1.shape[0], A2.shape[0]
     
-    # Initialize assignment
     row_ind, col_ind = linear_sum_assignment(C)
     
-    # Sort by cost
     costs = [C[r, c] for r, c in zip(row_ind, col_ind)]
     sorted_pairs = sorted(zip(row_ind, col_ind, costs), key=lambda x: x[2])
     
-    # Keep only L best matches
     selected = sorted_pairs[:L]
     
-    return [(r, c) for r, c, _ in selected]
+    return [(int(r), int(c)) for r, c, _ in selected]  # Convert to Python ints
 
 def compare_molecules(mol1, mol2, L=None):
     """Compare two molecules and return similarity score"""
@@ -146,7 +130,6 @@ def compare_molecules(mol1, mol2, L=None):
     if not matches:
         return 0, []
     
-    # Calculate similarity score
     score = len(matches) / min(mol1.GetNumAtoms(), mol2.GetNumAtoms())
     
     return score, matches
@@ -157,14 +140,13 @@ def visualize_matches(mol1, mol2, matches, save_path=None):
         print("No matches to visualize")
         return
     
-    matched_atoms1 = [i for i, j in matches]
-    matched_atoms2 = [j for i, j in matches]
+    # Convert numpy types to Python ints (FIX)
+    matched_atoms1 = [int(i) for i, j in matches]
+    matched_atoms2 = [int(j) for i, j in matches]
     
-    # Create copies for highlighting
     mol1_copy = Chem.Mol(mol1)
     mol2_copy = Chem.Mol(mol2)
     
-    # Draw molecules
     img = Draw.MolsToGridImage(
         [mol1_copy, mol2_copy],
         molsPerRow=2,
@@ -175,7 +157,7 @@ def visualize_matches(mol1, mol2, matches, save_path=None):
     )
     
     if save_path:
-        img.save(save_path)
+        img.save(str(save_path))
         print(f"✅ Saved visualization to {save_path}")
     else:
         img.show()
@@ -208,7 +190,6 @@ def find_similar_molecules(active_mols, inactive_mols, L=10, threshold=0.3):
                     'matches': matches
                 })
     
-    # Sort by score (higher is better)
     similar_pairs.sort(key=lambda x: x['score'], reverse=True)
     
     return similar_pairs
@@ -219,7 +200,6 @@ def main():
     print("🔬 MOLECULE MATCHING WITH WCS ALGORITHM")
     print("="*60)
     
-    # Load data
     print("\n📂 Loading molecule data...")
     active_adj, active_meta = load_molecule_data("Aromatase_actives_new")
     inactive_adj, inactive_meta = load_molecule_data("Aromatase_inactives_new")
@@ -227,7 +207,6 @@ def main():
     print(f"   Active molecules: {len(active_adj)}")
     print(f"   Inactive molecules: {len(inactive_adj)}")
     
-    # Load original molecules for matching
     print("\n📂 Loading original molecules with features...")
     active_mols = load_original_molecules("Aromatase_actives_new.sdf")
     inactive_mols = load_original_molecules("Aromatase_inactives_new.sdf")
@@ -235,13 +214,11 @@ def main():
     print(f"   Loaded {len(active_mols)} active molecules")
     print(f"   Loaded {len(inactive_mols)} inactive molecules")
     
-    # Find similar molecules
     print("\n🔍 Finding similar molecule pairs...")
     similar_pairs = find_similar_molecules(active_mols, inactive_mols, L=10, threshold=0.3)
     
     print(f"\n✅ Found {len(similar_pairs)} similar molecule pairs!")
     
-    # Display top results
     print("\n🏆 TOP 10 MOST SIMILAR PAIRS:")
     print("-"*60)
     for idx, pair in enumerate(similar_pairs[:10]):
@@ -250,7 +227,6 @@ def main():
         print(f"   Matched atoms: {pair['matches_count']}")
         print("-"*40)
     
-    # Visualize the best match
     if similar_pairs:
         best_pair = similar_pairs[0]
         print(f"\n🎨 Visualizing best match...")
@@ -260,7 +236,6 @@ def main():
         save_path = MATCH_OUT_DIR / "best_match.png"
         visualize_matches(mol1, mol2, best_pair['matches'], save_path)
         
-        # Save all results
         results_df = pd.DataFrame([{
             'active_idx': p['active_idx'],
             'inactive_idx': p['inactive_idx'],
