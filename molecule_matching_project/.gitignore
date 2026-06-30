@@ -1,0 +1,38 @@
+# .gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Output files (large files)
+outputs/
+*.sdf
+*.npy
+*.csv
+*.png
+
+# Data files
+data/
+*.sdf
+
+# Environment
+myenv/
+venv/
+env/
+.conda/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Large files
+*.pdf
+*.zip
+*.tar.gz
