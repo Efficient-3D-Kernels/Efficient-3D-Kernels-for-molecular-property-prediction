@@ -1,10 +1,9 @@
-# run_matching.py - Simplified version for testing
+# run_matching.py - UPDATED VERSION
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
-from scipy.optimize import linear_sum_assignment
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -57,10 +56,11 @@ def visualize_matches(mol1, mol2, matches, save_path=None):
 
 def main():
     print("="*60)
-    print("🔬 MOLECULE MATCHING WITH WCS+GNCCP")
+    print("🔬 WCS+GNCCP WITH FRANK-WOLFE")
+    print("   (Proper bond connectivity checking)")
     print("="*60)
     
-    # Load a small subset for testing
+    # Load molecules
     print("\n📂 Loading molecules...")
     active_mols = load_original_molecules("Aromatase_actives_new.sdf", max_mols=5)
     inactive_mols = load_original_molecules("Aromatase_inactives_new.sdf", max_mols=10)
@@ -68,15 +68,21 @@ def main():
     print(f"   Active molecules: {len(active_mols)}")
     print(f"   Inactive molecules: {len(inactive_mols)}")
     
-    # Initialize matcher
-    matcher = WCS_GNCCP(alpha=0.7, max_iter=30)
+    # Initialize matcher with Frank-Wolfe
+    matcher = WCS_GNCCP(
+        alpha=0.7,        # Balance structure vs appearance
+        max_iter=30,      # GNCCP outer iterations
+        fw_max_iter=15,   # Frank-Wolfe inner iterations
+        tol=1e-4
+    )
     
     # Find similar pairs
     similar_pairs = []
     total = len(active_mols) * len(inactive_mols)
     count = 0
     
-    print("\n🔄 Running WCS+GNCCP matching...")
+    print("\n🔄 Running WCS+GNCCP with Frank-Wolfe...")
+    print("   (This checks BOND CONNECTIVITY!)\n")
     
     for i, mol1 in enumerate(active_mols):
         for j, mol2 in enumerate(inactive_mols):

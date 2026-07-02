@@ -1,4 +1,7 @@
-# wcs_gnccp.py - Fixed and Optimized
+# wcs_gnccp.py - CORRECTED VERSION
+# X remains CONTINUOUS during optimization!
+# Only discretized to binary at the END!
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from rdkit import Chem
@@ -7,21 +10,20 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class WCS_GNCCP:
-    """
-    Weighted Common Subgraph Matching using GNCCP
-    Optimized version with bug fixes
-    """
+    """Weighted Common Subgraph Matching using GNCCP with Frank-Wolfe"""
     
-    def __init__(self, alpha=0.7, max_iter=50, tol=1e-4):
+    def __init__(self, alpha=0.7, max_iter=50, fw_max_iter=20, tol=1e-4):
         self.alpha = alpha
         self.max_iter = max_iter
+        self.fw_max_iter = fw_max_iter
         self.tol = tol
         
     def match(self, mol1, mol2, L=None, verbose=True):
         """Main matching function"""
         if verbose:
             print("="*60)
-            print("🔬 WCS+GNCCP Matching")
+            print("🔬 WCS+GNCCP Matching (Frank-Wolfe)")
+            print("   X remains CONTINUOUS during optimization")
             print("="*60)
         
         # Build weighted adjacency matrices
@@ -35,12 +37,13 @@ class WCS_GNCCP:
             L = min(M, N) - 2
             L = max(L, 1)
         else:
-            L = min(L, M, N)  # Ensure L doesn't exceed dimensions
+            L = min(L, M, N)
         
         if verbose:
             print(f"   Matching {L} atoms between {M} and {N} atoms")
+            print(f"   Alpha (structure weight): {self.alpha}")
         
-        # Build cost matrix
+        # Build cost matrix (atom features)
         C = self._build_cost_matrix(mol1, mol2)
         
         # Normalize cost
@@ -49,23 +52,20 @@ class WCS_GNCCP:
         else:
             C = C / (C.max() + 1e-8)
         
-        # Run GNCCP
+        # Run GNCCP with Frank-Wolfe
         X = self._gnccp_optimization(A_G, A_H, C, L, verbose)
         
-        # Extract matches
+        # Extract matches from binary X
         matches = []
         for i in range(M):
             for j in range(N):
                 if X[i, j] > 0.5:
                     matches.append((i, j))
         
-        # Ensure we have exactly L matches
+        # Ensure exactly L matches
         if len(matches) > L:
-            # Keep only L best matches
             matches = matches[:L]
         elif len(matches) < L:
-            # Add more matches if possible
-            # Get remaining candidates
             remaining = []
             for i in range(M):
                 for j in range(N):
@@ -85,11 +85,10 @@ class WCS_GNCCP:
         return X, matches, score
     
     def _build_weighted_adjacency(self, mol):
-        """Build weighted adjacency matrix"""
+        """Build weighted adjacency matrix with bond strengths"""
         n = mol.GetNumAtoms()
         A = np.zeros((n, n))
         
-        # Get coordinates
         if mol.GetNumConformers() == 0:
             mol2d = Chem.Mol(mol)
             mol2d.RemoveAllConformers()
@@ -102,7 +101,6 @@ class WCS_GNCCP:
             i = bond.GetBeginAtomIdx()
             j = bond.GetEndAtomIdx()
             
-            # Bond type weight
             bt = bond.GetBondType()
             if bt == Chem.BondType.SINGLE:
                 w = 1.0
@@ -115,7 +113,6 @@ class WCS_GNCCP:
             else:
                 w = 1.0
             
-            # Distance
             pos_i = conf.GetAtomPosition(i)
             pos_j = conf.GetAtomPosition(j)
             dist = np.sqrt((pos_i.x - pos_j.x)**2 + 
@@ -141,20 +138,14 @@ class WCS_GNCCP:
                 f1 = features1[i]
                 f2 = features2[j]
                 
-                # Atomic number
                 if f1['atomic_num'] != f2['atomic_num']:
                     C[i, j] += 100
-                
-                # Degree
                 C[i, j] += abs(f1['degree'] - f2['degree']) * 10
-                
-                # Ring membership
                 if f1['is_in_ring'] != f2['is_in_ring']:
                     C[i, j] += 5
-                
-                # Aromaticity
                 if f1['is_aromatic'] != f2['is_aromatic']:
                     C[i, j] += 10
+                C[i, j] += abs(f1['charge'] - f2['charge']) * 20
         
         return C
     
@@ -174,50 +165,62 @@ class WCS_GNCCP:
         return features
     
     def _gnccp_optimization(self, A_G, A_H, C, L, verbose=True):
-        """GNCCP optimization with fixed projection"""
+        """
+        GNCCP with Frank-Wolfe
+        
+        KEY: X remains CONTINUOUS during optimization!
+        """
         M, N = A_G.shape[0], A_H.shape[0]
         
-        # Initialize X
+        # Initialize X as continuous relaxation
         X = np.ones((M, N)) * (L / (M * N))
         
-        # GNCCP path
+        # GNCCP path: ζ from 1 to -1
         zeta_values = np.linspace(1.0, -1.0, self.max_iter)
         
         for idx, zeta in enumerate(zeta_values):
             if verbose and idx % 10 == 0:
-                print(f"   Iteration {idx+1}/{self.max_iter}, ζ = {zeta:.3f}")
+                print(f"   GNCCP Iteration {idx+1}/{self.max_iter}, ζ = {zeta:.3f}")
             
-            # Compute gradient
-            grad = self._compute_gradient(X, A_G, A_H, C, zeta)
-            
-            # Find direction
-            Y = self._solve_linear_programming(grad, L)
-            
-            # Line search
-            lambda_opt = self._line_search(X, Y, A_G, A_H, C, zeta)
-            
-            # Update
-            X_new = X + lambda_opt * (Y - X)
-            
-            # Project
-            X_new = self._project_to_partial_permutation_fast(X_new, L)
-            
-            # Check convergence
-            if np.linalg.norm(X_new - X) < self.tol:
-                if verbose:
-                    print(f"   Converged at iteration {idx+1}")
+            # Frank-Wolfe inner loop
+            for fw_iter in range(self.fw_max_iter):
+                grad = self._compute_gradient_Jzeta(X, A_G, A_H, C, zeta)
+                Y = self._solve_lp_direction(grad, L)
+                lambda_opt = self._line_search_Jzeta(X, Y, A_G, A_H, C, zeta)
+                
+                X_new = X + lambda_opt * (Y - X)
+                
+                # Project to RELAXATION D (continuous, NOT binary!)
+                X_new = self._project_to_relaxation(X_new, L)
+                
+                if np.linalg.norm(X_new - X) < self.tol:
+                    X = X_new
+                    break
+                
                 X = X_new
-                break
-            
-            X = X_new
         
-        # Final discretization
-        X = self._discretize_fast(X, L)
+        # FINAL: Discretize to binary partial permutation
+        X_binary = self._discretize_to_binary(X, L)
         
-        return X
+        return X_binary
     
-    def _compute_gradient(self, X, A_G, A_H, C, zeta):
-        """Compute gradient"""
+    def _compute_gradient_Jzeta(self, X, A_G, A_H, C, zeta):
+        """Compute gradient of J_ζ(X) (Equation 6)"""
+        grad_F = self._compute_gradient_F(X, A_G, A_H, C)
+        
+        if zeta >= 0:
+            grad = (1 - zeta) * grad_F + 2 * zeta * X
+        else:
+            grad = (1 + zeta) * grad_F + 2 * zeta * X
+        
+        grad = np.nan_to_num(grad, nan=0.0, posinf=1e6, neginf=-1e6)
+        return grad
+    
+    def _compute_gradient_F(self, X, A_G, A_H, C):
+        """
+        Compute gradient of FULL objective F(X)
+        Includes BOTH structure and appearance!
+        """
         M, N = X.shape
         
         # U = X * I * X^T
@@ -226,134 +229,149 @@ class WCS_GNCCP:
         
         # Structural term
         diff = (U * A_G) - (X @ A_H @ X.T)
-        
-        # Gradient of structural term
         grad_struct = -2 * (A_G.T @ diff @ X @ A_H.T + A_G @ diff @ X @ A_H)
         
-        # Gradient of appearance term
+        # Appearance term
         grad_app = (1 - self.alpha) * C
         
         # Full gradient
         grad_F = self.alpha * grad_struct + grad_app
         
-        # GNCCP scaling
-        if zeta >= 0:
-            grad = (1 - zeta) * grad_F + 2 * zeta * X
-        else:
-            grad = (1 + zeta) * grad_F + 2 * zeta * X
-        
-        # Handle NaN/Inf
-        grad = np.nan_to_num(grad, nan=0.0, posinf=1e6, neginf=-1e6)
-        
-        return grad
+        return grad_F
     
-    def _solve_linear_programming(self, grad, L):
-        """Solve LP using Hungarian algorithm"""
+    def _solve_lp_direction(self, grad, L):
+        """Solve LP for direction Y (Equation 5)"""
         M, N = grad.shape
         
-        # Use Hungarian
         row_ind, col_ind = linear_sum_assignment(grad)
         
-        # Build Y
         Y = np.zeros((M, N))
         for r, c in zip(row_ind, col_ind):
             if r < M and c < N:
-                Y[r, c] = 1
+                Y[r, c] = 1.0
         
-        # Ensure L matches
-        Y = self._project_to_partial_permutation_fast(Y, L)
-        
+        Y = self._project_to_relaxation(Y, L)
         return Y
     
-    def _line_search(self, X, Y, A_G, A_H, C, zeta):
-        """Line search with backtracking"""
+    def _line_search_Jzeta(self, X, Y, A_G, A_H, C, zeta):
+        """Line search (Equation 8)"""
         D = Y - X
         lambda_opt = 1.0
         
         for _ in range(20):
             X_new = X + lambda_opt * D
-            X_new = self._project_to_partial_permutation_fast(X_new, int(X.sum()))
+            X_new = self._project_to_relaxation(X_new, int(X.sum()))
             
-            # Check if valid
-            if self._is_valid(X_new):
+            J_new = self._compute_Jzeta(X_new, A_G, A_H, C, zeta)
+            J_old = self._compute_Jzeta(X, A_G, A_H, C, zeta)
+            
+            if J_new < J_old:
                 break
             
             lambda_opt *= 0.5
         
         return max(lambda_opt, 0.01)
     
-    def _is_valid(self, X):
-        """Check if X is valid"""
-        if np.any(X < -1e-6) or np.any(np.isnan(X)):
-            return False
-        if np.any(X.sum(axis=1) > 1.0 + 1e-4):
-            return False
-        if np.any(X.sum(axis=0) > 1.0 + 1e-4):
-            return False
-        return True
+    def _compute_Jzeta(self, X, A_G, A_H, C, zeta):
+        """Compute J_ζ(X)"""
+        F = self._compute_F(X, A_G, A_H, C)
+        
+        if zeta >= 0:
+            J = (1 - zeta) * F + zeta * np.trace(X.T @ X)
+        else:
+            J = (1 + zeta) * F + zeta * np.trace(X.T @ X)
+        
+        return J
     
-    def _project_to_partial_permutation_fast(self, X, L):
+    def _compute_F(self, X, A_G, A_H, C):
+        """Compute FULL objective F(X) (Equation 2)"""
+        M, N = X.shape
+        
+        I = np.ones((N, N))
+        U = X @ I @ X.T
+        
+        diff = (U * A_G) - (X @ A_H @ X.T)
+        struct_term = np.linalg.norm(diff, 'fro') ** 2
+        app_term = np.trace(C.T @ X)
+        
+        F = self.alpha * struct_term + (1 - self.alpha) * app_term
+        return F
+    
+    def _project_to_relaxation(self, X, L):
         """
-        Fast projection to partial permutation matrices
-        Uses greedy selection instead of sorting all elements
+        Project X to convex hull D (continuous relaxation)
+        X remains CONTINUOUS here.
+        
+        D = {X | row sums ≤ 1, col sums ≤ 1, total sum = L, X ≥ 0}
         """
         M, N = X.shape
         
         # Ensure non-negative
         X = np.maximum(X, 0)
         
-        # If L is larger than matrix size, adjust
-        L = min(L, M * N)
+        # Scale to total sum = L
+        current_sum = X.sum()
+        if current_sum > 0:
+            X = X * (L / current_sum)
         
-        # Flatten and find top L
-        flat = X.flatten()
-        
-        # Use argpartition for O(n) instead of O(n log n)
-        if L < len(flat):
-            threshold = np.partition(flat, -L)[-L]
-            Y = np.zeros_like(X)
-            Y[X >= threshold] = 1
-        else:
-            Y = (X > 0).astype(float)
-        
-        # Enforce row/column constraints
-        # Row constraints
+        # Project rows
         for i in range(M):
-            row_ones = np.where(Y[i, :] == 1)[0]
-            if len(row_ones) > 1:
-                # Keep only highest value
-                keep_idx = row_ones[np.argmax(X[i, row_ones])]
-                Y[i, :] = 0
-                Y[i, keep_idx] = 1
+            row_sum = X[i, :].sum()
+            if row_sum > 1.0:
+                X[i, :] = X[i, :] / row_sum
         
-        # Column constraints
+        # Project columns
         for j in range(N):
-            col_ones = np.where(Y[:, j] == 1)[0]
-            if len(col_ones) > 1:
-                keep_idx = col_ones[np.argmax(X[col_ones, j])]
-                Y[:, j] = 0
-                Y[keep_idx, j] = 1
+            col_sum = X[:, j].sum()
+            if col_sum > 1.0:
+                X[:, j] = X[:, j] / col_sum
         
-        # Adjust total sum to L
+        # Re-normalize
+        current_sum = X.sum()
+        if current_sum > 0:
+            X = X * (L / current_sum)
+        
+        # Clamp to [0, 1]
+        X = np.clip(X, 0, 1)
+        
+        return X
+    
+    def _discretize_to_binary(self, X, L):
+        """
+        Convert continuous X to binary partial permutation
+        ONLY called at the END of GNCCP optimization!
+        """
+        M, N = X.shape
+        L = min(L, M, N)
+        
+        if L == 0:
+            return np.zeros((M, N))
+        
+        # Hungarian for final assignment
+        C = -X
+        row_ind, col_ind = linear_sum_assignment(C)
+        
+        Y = np.zeros((M, N))
+        for r, c in zip(row_ind, col_ind):
+            if r < M and c < N:
+                Y[r, c] = 1
+        
+        # Ensure exactly L matches
         current_sum = int(Y.sum())
         if current_sum > L:
-            # Remove extra ones
             ones = np.where(Y == 1)
             if len(ones[0]) > 0:
-                # Remove from lowest values
                 vals = [(X[ones[0][k], ones[1][k]], k) for k in range(len(ones[0]))]
                 vals.sort(key=lambda x: x[0])
                 for _, k in vals[:current_sum - L]:
                     Y[ones[0][k], ones[1][k]] = 0
-        elif current_sum < L and L > 0:
-            # Add more ones
+        elif current_sum < L:
             zeros = np.where(Y == 0)
             if len(zeros[0]) > 0:
-                # Add to highest values
                 vals = [(X[zeros[0][k], zeros[1][k]], k) for k in range(len(zeros[0]))]
                 vals.sort(key=lambda x: x[0], reverse=True)
                 added = 0
-                for val, k in vals:
+                for _, k in vals:
                     if added >= L - current_sum:
                         break
                     i, j = zeros[0][k], zeros[1][k]
@@ -363,24 +381,10 @@ class WCS_GNCCP:
         
         return Y
     
-    def _discretize_fast(self, X, L):
-        """Fast discretization"""
-        M, N = X.shape
-        
-        # Use Hungarian for final assignment
-        C = -X  # Maximize X, so minimize -X
-        row_ind, col_ind = linear_sum_assignment(C)
-        
-        Y = np.zeros((M, N))
-        for r, c in zip(row_ind, col_ind):
-            if r < M and c < N:
-                Y[r, c] = 1
-        
-        # Ensure L matches
-        Y = self._project_to_partial_permutation_fast(Y, L)
-        
-        return Y
-
+    def _is_binary(self, X, tol=1e-3):
+        """Check if X is binary"""
+        return np.all((X < tol) | (X > 1 - tol))
+    
     def compute_similarity_score(self, mol1, mol2, L=None):
         """Convenience method"""
         _, _, score = self.match(mol1, mol2, L, verbose=False)

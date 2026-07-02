@@ -1,25 +1,32 @@
-# .gitignore
-
-# Python cache
+# Create .gitignore
+cat > .gitignore << 'EOF'
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 
-# Output files (large files)
-outputs/
+# Data files
 *.sdf
 *.npy
 *.csv
 *.png
+*.jpg
 
-# Data files
+# Output directories
+outputs/
 data/
-*.sdf
 
 # Environment
-myenv/
 venv/
 env/
+.venv/
 .conda/
 
 # IDE
@@ -29,10 +36,14 @@ env/
 *.swo
 
 # OS
-Thumbs.db
 .DS_Store
+Thumbs.db
 
 # Large files
-*.pdf
 *.zip
 *.tar.gz
+*.rar
+EOF
+
+# Add .gitignore to staging
+git add .gitignore
