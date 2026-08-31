@@ -1,0 +1,994 @@
+\documentclass[aspectratio=169, 11pt]{beamer}
+
+% --- Packages & Setup ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage{booktabs} 
+\usepackage{graphicx}
+\usepackage{tikz} % Required for the corner box
+\usetikzlibrary{calc}
+\usetikzlibrary{positioning}
+% Try loading Open Sans; fallback if missing
+\IfFileExists{opensans.sty}{\usepackage[default,scale=0.95]{opensans}}{}
+
+% --- Branding Colors ---
+\definecolor{amritaMaroon}{HTML}{A4123F} 
+
+% --- Theme Setup ---
+\usetheme{Madrid}
+\usecolortheme[named=amritaMaroon]{structure}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\begin{document}
+
+% --- CUSTOM TITLE SLIDE (Research) ---
+\begin{frame}
+    % Corner Box Indicator
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[fill=amritaMaroon, text=white, font=\bfseries\footnotesize, anchor=north east, rounded corners=2pt, inner sep=5pt] 
+        at ($(current page.north east) + (-0.2cm,-0.2cm)$) 
+        {Type 1: Research Project};
+    \end{tikzpicture}
+
+    \centering
+    \includegraphics[width=3.5cm]{logo.png} 
+    \vspace{0.3cm}
+    
+    {\Large \textbf{\textcolor{amritaMaroon}{A Hierarchical Approach for Efficient Virtual Screening Using 2D Filtering and 3D Structural Similarity}}} \\
+    \vspace{0.2cm}
+    {\normalsize \textbf{Team Number: [11]}} \\ 
+    \vspace{0.5cm}
+
+    % Student Table
+    \begin{table}
+        \centering
+        \small 
+        \renewcommand{\arraystretch}{1.2}
+        \begin{tabular}{|c|c|l|}
+            \hline
+            \textbf{S.No} & \textbf{Register Number} & \textbf{Student Name} \\
+            \hline
+            1 & CB.SC.U4CSE23206 & Allampati Chenchu Sanhitha Reddy \\
+            \hline
+            2 & CB.SC.U4CSE23245 & Shaik Abdus Sattar \\
+            \hline
+            3 & CB.SC.U4CSE23616 & Geethika G Nair \\
+            \hline
+            4 & CB.SC.U4CSE23633 & Meera J Vaishnav \\
+            \hline
+        \end{tabular}
+    \end{table}
+    \vspace{0.3cm}
+    
+    Guide: \textbf{Dr. T Ramraj} \\
+    {\footnotesize Assistant Professor(SI.Gd), Department of CSE}
+    
+    \vspace{0.5cm}
+    {\footnotesize \today}
+\end{frame}
+
+% --- SLIDE 1:PANEL COMMENTS  ---
+\begin{frame}{1. Panel Comments}
+\small
+\begin{itemize}
+
+\item \textbf{Computational Feasibility:} Direct 3D graph kernel methods are computationally expensive ($O(n^6)$), whereas our 2D topological screening runs at $O(T \cdot n^3)$ per pair --- competitive with Random Walk and Optimal Assignment kernels --- and a rank-one algebraic factorization (Lemma~1) eliminates one $O(n^3)$ sub-step from each gradient evaluation, yielding measured speeds of ${\sim}6$\,ms/pair on drug-like molecules.
+
+\item \textbf{Novelty:} We propose a hybrid two staged (2D to 3D) pipeline where efficient 2D similarity screening identifies promising candidates, and only those are further analyzed using computationally intensive 3D kernels.
+
+\item \textbf{Output \& Validation:} The model predicts molecular binding activity (active/inactive) and is evaluated using standard classification metrics.
+
+\item \textbf{2D from 3D Data:} Although the dataset contains 3D molecular structures, we initially extract only 2D topological features such as atom connectivity and bond types, ignoring geometric properties.
+
+\item \textbf{Why 2D to 3D:} The 2D stage efficiently reduces the search space by selecting highly similar molecules (e.g., similarity 0.9), after which full 3D structural features are incorporated for precise similarity computation.
+
+\end{itemize}
+\end{frame}
+
+% --- SLIDE 2: PROBLEM STATEMENT ---
+\section{Problem Statement}
+\begin{frame}{2. Problem Statement}
+\framesubtitle{Efficient Virtual Screening via Hierarchical 2D–3D Similarity Modeling}
+
+\vspace{1em}
+
+\begin{itemize}
+\setlength\itemsep{1em}
+
+\item \textbf{Domain \& Objective:} Virtual screening in drug discovery aims to identify molecules that can effectively bind to a target protein.
+
+\item \textbf{Key Challenge:} Existing 3D similarity methods (e.g., graph kernels) are accurate but computationally expensive, requiring evaluation of all candidates at high complexity.
+
+\item \textbf{Research Gap:} Current approaches lack an efficient mechanism to reduce the search space before applying costly 3D computations.
+
+\item \textbf{Proposed Direction:} A hierarchical pipeline that performs fast 2D topological filtering followed by selective 3D kernel-based analysis.
+
+\end{itemize}
+
+\vspace{0.5em}
+
+\centering
+\textit{\small Goal: Achieve efficient and scalable molecular similarity prediction without compromising structural accuracy.}
+
+\end{frame}
+
+\section{Literature Survey}
+
+% --- SLIDE 3 : Literature Survey---
+\begin{frame}{3. Literature Survey}
+\framesubtitle{Survey Scope}
+\begin{itemize}
+
+    \item We conducted a comprehensive survey of both foundational and recent research works in the domain of molecular property prediction and virtual screening.
+
+    \item The survey primarily focuses on three major methodological directions:
+    \begin{itemize}
+        \item \textbf{Graph Kernel Methods:} Traditional approaches that compute similarity between molecular graphs using handcrafted structural features and kernel functions.
+        
+        \item \textbf{Graph Neural Networks (GNNs):} Deep learning-based approaches that automatically learn representations from molecular graphs, capturing complex patterns in data.
+        
+        \item \textbf{2D and 3D Molecular Representations:} Techniques that model molecules using:
+        \begin{itemize}
+            \item 2D topological structures (atoms and bonds)
+            \item 3D geometric features (bond length, bond angle, torsion angle)
+        \end{itemize}
+    \end{itemize}
+
+    \item The selected literature includes:
+    \begin{itemize}
+        \item \textbf{Classical approaches} such as Weisfeiler–Lehman graph kernels and pharmacophore kernels
+        \item \textbf{Modern deep learning methods} such as GCNs and multimodal GNN architectures
+        \item \textbf{Recent advancements} incorporating 3D geometric information and hybrid representations
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+%--------------------------------------------------
+% --- TABLE SLIDE 1 ---
+\begin{frame}{3.1 Survey: Key Papers with Research Gaps}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+
+\begin{tabular}{|p{2.8cm}|p{2.3cm}|p{0.9cm}|p{3.2cm}|p{3.8cm}|}
+\hline
+\textbf{Paper Title} & \textbf{Authors} & \textbf{Year} & \textbf{Focus} & \textbf{Research Gap} \\ \hline
+
+A multimodal geometric graph neural network approach for molecular property prediction \cite{jiang2026qegnn}
+& Zhixin Jiang et al. 
+& 2026 
+& Multimodal fusion of fingerprints, 2D + 3D features 
+& Computationally expensive; requires large training data \\ \hline
+
+Self-conformation-aware framework \cite{qiao2025self}
+& Jianbo Qiao et al. 
+& 2025 
+& Conformation-aware 2D representation learning 
+& Does not fully utilize complete 3D geometry \\ \hline
+
+Multilevel Fusion GNN \cite{liu2025multilevel}
+& XiaYu Liu et al. 
+& 2025 
+& Hierarchical modeling of 2D graph structures 
+& No explicit modeling of 3D spatial features \\ \hline
+
+Weisfeiler–Lehman Kernel \cite{shervashidze2011wl}
+& Shervashidze et al. 
+& 2011 
+& Efficient 2D graph kernel 
+& Ignores 3D structural information \\ \hline
+
+Pharmacophore Kernel \cite{mahe2006pharmacophore}
+& Mahé et al. 
+& 2006 
+& Captures spatial geometry 
+& Computationally expensive; incomplete torsion modeling \\ \hline
+
+Graph Convolutional Networks \cite{kipf2016gcn}
+& Kipf \& Welling 
+& 2016 
+& Graph-based deep learning model 
+& Requires large labeled datasets and training \\ \hline
+
+Efficient 3D Kernels \cite{ankit2023efficient3d}
+& Ankit et al. 
+& 2023 
+& Uses bond length, angle, torsion 
+& High computational cost for large-scale screening \\ \hline
+
+
+\end{tabular}
+\end{frame}
+
+% --- TABLE SLIDE 2  ---
+\begin{frame}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+
+\begin{tabular}{|p{2.8cm}|p{2.3cm}|p{0.9cm}|p{3.2cm}|p{3.8cm}|}
+\hline
+\textbf{Paper Title} & \textbf{Authors} & \textbf{Year} & \textbf{Focus} & \textbf{Key Insight} \\ \hline
+
+Graph Kernel Framework \cite{gartner2003graphkernels}
+& Gärtner et al. 
+& 2003 
+& R-convolution graph decomposition 
+& Not optimized for molecular geometry or scalability \\ \hline
+
+Graph Kernels in Drug Discovery \cite{palivela2017graphkernels}
+& Palivela et al. 
+& 2017 
+& Comparative study of graph kernels 
+& No unified efficient hybrid 2D–3D approach \\ \hline
+
+Interpretable Molecular Property Prediction using Graph Kernels \cite{xiang2023interpretable}
+& Yan Xiang et al. 
+& 2023 
+& Interpretable graph kernel models 
+& Improves explainability of kernel-based predictions \\ \hline
+
+Motif Entropy Graph Kernel \cite{motif2023kernel}
+& (Pattern Recognition Journal) 
+& 2023 
+& Motif + entropy based graph kernel 
+& Captures deeper structural patterns than WL kernel \\ \hline
+
+Fingerprint + Graph Hybrid Neural Network \cite{zhang2024hybrid}
+& Qingtian Zhang et al. 
+& 2024 
+& Combines fingerprints + graph features 
+& Hybrid models outperform single-representation methods \\ \hline
+
+Graph + Transformer Fusion Model \cite{prakash2023fusion}
+& Sai Prakash et al. 
+& 2023 
+& GNN + Transformer integration 
+& Captures both local and global molecular features \\ \hline
+
+Efficient Graph Similarity using Topological Indices \cite{dehmer2025topological}
+& Dehmer et al. 
+& 2025 
+& Topological index-based similarity 
+& Reduces computational complexity vs kernel methods \\ \hline
+
+\end{tabular}
+
+\end{frame}
+
+% SLIDE ---4. Research gap ----
+\begin{frame}{4. Overall Research Gap}
+\begin{itemize}
+    \item Existing methods either rely on 2D representations (e.g., WL Kernel), which are computationally efficient but fail to capture detailed 3D structural information, or on 3D/multimodal models, which are accurate but computationally expensive and not scalable.
+
+    \item Recent deep learning approaches (GNNs, Transformer-based, hybrid models) require large training datasets and high computational resources, limiting their applicability for efficient large-scale virtual screening.
+
+    \item Many approaches focus on either topological features (2D) or geometric features (3D), with a lack of effective and efficient integration of both representations.
+
+    \item Existing graph kernel methods and similarity techniques often rely on dense representations (e.g., adjacency matrices), leading to increased computational complexity.
+
+    \item Therefore, there is a need for a scalable, efficient, and unified framework that balances:
+    \begin{itemize}
+        \item Fast \textbf{2D screening}
+        \item Accurate \textbf{3D structural similarity}
+        \item Reduced \textbf{computational complexity}
+        \item Effective \textbf{candidate prioritization}
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% --- SLIDE 5: EXISTING MECHANISMS ---
+\section{Existing Mechanisms}
+\begin{frame}{5. Existing Mechanisms}
+\framesubtitle{Methods for Ligand Similarity and Screening}
+\begin{itemize}
+    \item \textbf{Computational Approaches:}
+    \begin{itemize}
+        \item \textit{Random Walk} - Measures similarity by counting matching random walks (sequences of connected nodes) between two graphs. Suffers from high computational cost and the tottering problem (revisiting the same nodes reduces meaningful information).
+
+        \item \textit{WLK (Weisfeiler--Lehman Kernel)} - Iteratively relabels nodes based on neighbors to capture hierarchical graph structure efficiently. Fails to capture continuous attributes and 3D geometry; limited to discrete topology.
+
+        \item \textit{Pharmacophore Kernel} - Compares molecules based on spatial arrangements of chemical features (e.g., donor/acceptor groups). Computationally expensive for large datasets due to 3D matching complexity.
+
+        \item \textit{3D Graph Kernel (3DGHK)} - Captures bond length, bond angle, and torsion angle using 3-hop neighborhoods to compute molecular similarity more effectively.
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+% --- SLIDE 6: PROPOSED APPROACH ---
+\begin{frame}{6. Proposed Approach}
+    \framesubtitle{A Two-Stage Graph Kernel Pipeline}
+
+    \vspace{0.3em}
+
+    \begin{columns}[T]
+
+        \begin{column}{0.48\textwidth}
+            \textbf{Stage 1 \hspace{0.2em} 2D Filtering}
+            \vspace{0.3em}
+            \hrule
+            \vspace{0.4em}
+            \begin{enumerate}
+                \setlength\itemsep{0.5em}
+                \item Represent molecules as graphs using \textbf{adjacency lists} 
+                with 2D structural attributes
+                \item \textbf{2D Kernel} computes similarity scores against 
+                known active and inactive molecules
+                \item Candidates with low 2D similarity are \textbf{discarded early}
+            \end{enumerate}
+        \end{column}
+
+        \hfill\vrule\hfill
+
+        \begin{column}{0.48\textwidth}
+            \textbf{Stage 2 \hspace{0.2em} 3D Evaluation}
+            \vspace{0.3em}
+            \hrule
+            \vspace{0.4em}
+            \begin{enumerate}
+                \setlength\itemsep{0.5em}
+                \item \textbf{Promising candidates} from Stage 1 proceed to 
+                3D evaluation
+                \item \textbf{3D Kernel} evaluates 3D attributes on promising candidates only
+                \item \textbf{ML/DL model} makes final prediction: 
+                \textit{bind or not bind?}
+            \end{enumerate}
+        \end{column}
+
+    \end{columns}
+
+    \vspace{0.8em}
+    \hrule
+    \vspace{0.4em}
+
+    \centering
+    \small
+    \textbf{2D filtering first} $\longrightarrow$ \textbf{3D evaluation only for promising candidates} 
+    $\longrightarrow$ \textbf{Final prediction}
+\end{frame}
+
+%--------SLIDE 7: DATASET DESCRIPTION%
+\begin{frame}{7. Dataset Description}
+
+\textbf{Source:} Standard ligand-based virtual screening benchmark datasets
+
+\begin{itemize}
+    \item \textbf{Target Proteins:}
+    \begin{itemize}
+        \item The dataset comprises multiple protein targets.
+        \item Each pair of files (actives/inactives) corresponds to a specific protein target.
+    \end{itemize}
+
+    \item \textbf{Data Format:}
+    \begin{itemize}
+        \item Stored in \textbf{Structure Data File (.sdf)} format.
+        \item Encodes detailed molecular information, including:
+        \begin{itemize}
+            \item Atom types and bond connectivity
+            \item 2D structural representation
+            \item 3D spatial coordinates of atoms
+        \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Molecular Classes:}
+    \begin{itemize}
+        \item \textbf{Active compounds:} Experimentally validated ligands exhibiting binding affinity.
+        \item \textbf{Inactive compounds:} Molecules with no significant binding activity.
+    \end{itemize}
+
+    \item \textbf{Role in Proposed Pipeline:}
+    \begin{itemize}
+        \item Active molecules serve as a \textbf{reference set} for similarity-based learning.
+        \item Promising candidates undergo \textbf{3D kernel-based analysis} for precise similarity evaluation.
+    \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+% --- SLIDE 8: ORIGINALITY (Rubric: 4 Marks) ---
+
+\section{Originality}
+\begin{frame}{8. Originality of Work}
+\framesubtitle{Rubric: Novel Idea vs.\ Extension}
+
+\begin{block}{What exists}
+\begin{itemize}
+    \item 2D kernel methods (e.g.\ WLK) are fast but discard all geometric information
+    \item 3D similarity methods are accurate but expensive when applied to every candidate
+    \item Hybrid 2D+3D models fuse both simultaneously --- accuracy improves but cost remains high
+\end{itemize}
+\end{block}
+
+\vspace{0.3em}
+
+\begin{block}{What we contribute}
+\begin{itemize}
+    \item A \textbf{staged pipeline} --- 2D screening using WCS-GNCCP with Frank-Wolfe gates candidates before 3D evaluation
+    \item A \textbf{rank-one factorization} (Lemma~1) that provably eliminates one $O(n^3)$ sub-step per gradient, making each Frank-Wolfe iteration faster by a factor proportional to the molecule size
+    \item Our 2D kernel outputs a \textbf{bijective atom correspondence map} alongside the score --- this reduces the 3D stage to a single $O(n)$ Kabsch alignment
+    \item No existing method treats 2D as a \textbf{search-space reduction gate} before 3D --- that staging decision is our contribution
+\end{itemize}
+\end{block}
+
+\end{frame}
+
+% --- SLIDE 9 : Technical Knowledge --- 
+
+\begin{frame}{9. Technical Knowledge (Algorithms/Models)}
+\framesubtitle{Custom Two-Stage Graph-Based Screening Algorithm}
+
+\begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+        \textbf{Stage 1 --- Custom 2D Kernel} \hfill \textcolor{amritaMaroon}{\small $O(T \cdot n^3)$/pair}
+        \vspace{0.3em}
+        \hrule
+        \vspace{0.4em}
+        \begin{itemize}
+            \setlength\itemsep{0.5em}
+            \item Strip 3D coordinates from SDF --- retain atom type and bond connectivity only
+            \item Build \textbf{weighted adjacency matrix} per molecule; Frobenius-normalise for scale invariance (Prop.~4)
+            \item \textbf{WCS-GNCCP + Frank-Wolfe} optimisation produces similarity score $s \in [0,1]$ \textbf{and} bijective atom map $\mathbf{X}^*$
+            \item Rank-one factorization (Lemma~1) reduces $\mathbf{U}$ from $O(n^3)$ to $O(n^2)$
+            \item Discard candidates where $s < 0.7$ --- threshold is tunable
+        \end{itemize}
+    \end{column}
+
+    \hfill\vrule\hfill
+
+    \begin{column}{0.48\textwidth}
+        \textbf{Stage 2 --- 3D Geometric Check} \hfill \textcolor{amritaMaroon}{\small $O(n)$}
+        \vspace{0.3em}
+        \hrule
+        \vspace{0.4em}
+        \begin{itemize}
+            \setlength\itemsep{0.5em}
+            \item Atom map $\mathbf{X}^*$ from Stage 1 already known --- \textbf{no combinatorial search repeated}
+            \item \textbf{Kabsch alignment:} SVD of a fixed $3\times 3$ cross-covariance matrix --- $O(1)$; coordinate extraction and RMSD over $L$ atoms --- $O(n)$
+            \item Hybrid kernel: $k_{\text{hybrid}} = (1{-}\beta)\,k_{\text{2D}} + \beta\,e^{-\gamma_{\text{3D}}\,\text{RMSD}}$
+            \item Output: \textbf{Match / No Match} per candidate
+        \end{itemize}
+    \end{column}
+
+\end{columns}
+
+\vspace{0.4em}
+\hrule
+\vspace{0.2em}
+\centering\small
+Overall per-pair cost dominated by Stage~1; Stage~2 adds only microseconds.
+
+\end{frame}
+
+% --- SLIDE 10: CONCEPTUAL FLOW DIAGRAM ---
+\begin{frame}{10.Conceptual / Algorithmic Flow}
+\centering
+\includegraphics[width=0.9\textwidth]{KernelApproachArchitectureDiagram.png}
+\end{frame}
+
+% --- SLIDE 11: PAPER / APPROACH ---
+\begin{frame}{11. GNCCP-Based Weighted Common Subgraph Matching}
+
+\centering
+
+\vspace{0.25cm}
+
+\includegraphics[width=0.34\textwidth]{gnccp.png}
+
+\vspace{0.1cm}
+
+\footnotesize
+\textbf{Objective:}
+$H_0(X)=\left\|A_{\mathrm{sub}G}-A_{\mathrm{sub}H}\right\|_F^2$
+
+\end{frame}
+
+% --- SLIDE: THEORETICAL GUARANTEE (Relabeling Invariance) ---
+\section{Theoretical Guarantee}
+\begin{frame}{12. Theoretical Guarantee}
+\framesubtitle{Relabeling Invariance of the 2D Kernel Similarity Score}
+
+\begin{block}{Proposition 1 (Relabeling Invariance)}
+\small
+Let $\mathbf{P}\in\{0,1\}^{M\times M}$, $\mathbf{Q}\in\{0,1\}^{N\times N}$ be permutation matrices encoding an arbitrary re-indexing of atoms in molecules $G,H$ (as stored in the SDF file), and let $\mathbf{A}_G' = \mathbf{P}\mathbf{A}_G\mathbf{P}^{T}$, $\mathbf{A}_H' = \mathbf{Q}\mathbf{A}_H\mathbf{Q}^{T}$. Then, for any atom correspondence $\mathbf{X}\in\mathcal{P}$,
+\[
+s\big(\mathbf{P}\mathbf{X}\mathbf{Q}^{T};\,\mathbf{A}_G',\mathbf{A}_H'\big) \;=\; s\big(\mathbf{X};\,\mathbf{A}_G,\mathbf{A}_H\big).
+\]
+\end{block}
+
+\vspace{0.4em}
+
+\begin{exampleblock}{Why it matters}
+\small
+\begin{itemize}
+\setlength\itemsep{0.3em}
+\item Atom order in an SDF file is arbitrary --- it reflects file-writing convention, not molecular identity
+\item Guarantees our \textbf{2D kernel score} and \textbf{bijective atom map} $M:i\mapsto j$ are well-defined regardless of atom indexing
+\item Makes Stage 1 filtering deterministic and reproducible across differently-ordered input files
+\end{itemize}
+\end{exampleblock}
+
+\end{frame}
+% ============================================================
+% SLIDE 13: EXTENDED VALIDATION
+% ============================================================
+
+\begin{frame}{13. Extended Validation Across Application Domains}
+\framesubtitle{Testing Proposition 1 Beyond the Synthetic Graph Example}
+
+\begin{columns}[T]
+
+% ------------------------------------------------------------
+% DROSOPHILA
+% ------------------------------------------------------------
+
+\begin{column}{0.31\textwidth}
+
+\textbf{Drosophila Brain Connectome}
+\vspace{0.2em}
+\hrule
+\vspace{0.3em}
+
+\small
+\begin{itemize}
+\setlength\itemsep{0.35em}
+
+\item Reference connectome:
+24 identified neurons across 8 neuropils
+
+\item Sample connectome:
+30 neurons with 20 corresponding neurons + 10 unmatched extras
+
+\item Graph construction based on
+\textbf{soma-to-soma distances}
+
+\item Fly B subjected to
+rigid rotation + translation
+
+\item Partial matching:
+$M=24,\;N=30,\;L=20$
+
+\item \textbf{Result:}
+16/20 correctly matched
+(80\%) in the rectified experiment
+
+\item Rotation/translation does not alter
+the underlying distance structure
+
+\end{itemize}
+
+\end{column}
+
+
+% ------------------------------------------------------------
+% MOF
+% ------------------------------------------------------------
+
+\begin{column}{0.31\textwidth}
+
+\textbf{Metal--Organic Framework Matching}
+\vspace{0.2em}
+\hrule
+\vspace{0.3em}
+
+\small
+\begin{itemize}
+\setlength\itemsep{0.35em}
+
+\item Reference motif:
+metal centers + organic linkers
+
+\item Reference size:
+$M=18$ atoms
+
+\item Sample:
+2 missing atoms + 6 decoy atoms
+
+\item $65^\circ$ 3D rotation + translation
+
+\item Matching:
+$N=22,\;L=16$
+
+\item Unary term $\mathbf{C}$:
+metal $\leftrightarrow$ linker mismatch penalty
+
+\item $\alpha=0.7$
+
+\item \textbf{Result:}
+16/16 atoms correctly matched
+(100\%)
+
+\item No metal--linker mismatches
+
+\end{itemize}
+
+\end{column}
+
+
+% ------------------------------------------------------------
+% SOCIAL NETWORK
+% ------------------------------------------------------------
+
+\begin{column}{0.31\textwidth}
+
+\textbf{Social Network De-anonymization}
+\vspace{0.2em}
+\hrule
+\vspace{0.3em}
+
+\small
+\begin{itemize}
+\setlength\itemsep{0.35em}
+
+\item Reference network:
+22 users with scale-free structure
+
+\item Sample:
+4 users missing + 8 decoy accounts
+
+\item Noisy / dropped edges
+
+\item All user IDs re-numbered
+
+\item Matching:
+$N=30,\;L=18$
+
+\item Unary term $\mathbf{C}$:
+interest-category mismatch penalty
+
+\item $\alpha=0.8$
+
+\item \textbf{Result:}
+10/18 users correctly identified
+(55.6\%)
+
+\item Sparse, low-degree nodes remain
+intrinsically ambiguous
+
+\end{itemize}
+
+\end{column}
+
+\end{columns}
+
+\vspace{0.5em}
+
+\centering
+\small
+\textit{The experiments test whether the matching objective is preserved
+under changes that do not alter the underlying graph correspondence.}
+
+\end{frame}
+
+
+% ============================================================
+% SLIDE 14: VALIDATION SUMMARY TABLE
+% ============================================================
+
+\begin{frame}{14. Empirical Validation of Proposition 1}
+\framesubtitle{Consistency of Graph Matching Under Relabeling and Geometric Transformations}
+
+\vspace{0.3em}
+
+\begin{itemize}
+\setlength\itemsep{0.35em}
+
+\item Each domain was evaluated using the GNCCP-based WCS matching framework.
+
+\item Graphs were subjected to vertex relabeling or
+rigid geometric transformations while preserving the underlying structure.
+
+\item Matching results were compared after translating predictions
+back to the original labeling.
+
+\item \textbf{Proposition 1 concerns the invariance of the WCS objective
+under vertex relabeling; geometric invariance follows when the graph
+weights themselves are distance-preserving.}
+
+\end{itemize}
+
+\vspace{0.5em}
+
+\centering
+
+\renewcommand{\arraystretch}{1.25}
+
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Domain}
+&
+\textbf{$(M,N,L)$}
+&
+\textbf{Perturbation}
+&
+\textbf{Accuracy}
+&
+\textbf{Same after undo?}
+\\
+\midrule
+
+Paper Fig.~1 example
+&
+$(5,6,4)$
+&
+Vertex relabeling
+&
+Illustrative
+&
+Yes
+\\
+
+Drosophila connectome
+&
+$(24,30,20)$
+&
+Rotation + translation
+&
+80\% (16/20)
+&
+Yes
+\\
+
+MOF fragment
+&
+$(18,22,16)$
+&
+$65^\circ$ rotation + translation
+&
+100\% (16/16)
+&
+Yes
+\\
+
+Social network
+&
+$(22,30,18)$
+&
+Full ID relabeling
+&
+55.6\% (10/18)
+&
+Yes
+\\
+
+\bottomrule
+\end{tabular}
+}
+
+\vspace{0.7em}
+
+\begin{block}{Key Observation}
+\small
+Matching accuracy varies with graph ambiguity and noise,
+but the \textbf{graph matching objective remains invariant to vertex
+labeling}. Thus, changing vertex names does not change the underlying
+WCS matching problem.
+\end{block}
+
+\end{frame}
+% ============================================================
+% SLIDE 15: MATH OPTIMIZATION 1
+% ============================================================
+\section{Mathematical \& Algorithmic Optimizations}
+\begin{frame}{15. Mathematical Optimization: Complexity Reduction}
+\framesubtitle{Rank-One Factorization and Honest Complexity Analysis}
+
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \textbf{Lemma 1: $\mathbf{U} = \mathbf{r}\mathbf{r}^T$}
+        \vspace{0.3em}
+        \hrule
+        \vspace{0.4em}
+        \small
+        \begin{itemize}
+            \setlength\itemsep{0.4em}
+            \item The co-matching indicator $\mathbf{U} = \mathbf{X}\mathbf{1}_{N\times N}\mathbf{X}^T$ na\"ively costs $O(MN^2{+}M^2N)$
+            \item Factor: $\mathbf{1}_{N\times N} = \mathbf{1}_N\mathbf{1}_N^T$, so $\mathbf{U} = (X\mathbf{1}_N)(X\mathbf{1}_N)^T = \mathbf{r}\mathbf{r}^T$
+            \item Cost: $O(MN + M^2)$ --- \textcolor{green!60!black}{\textbf{one cubic sub-step eliminated}}
+        \end{itemize}
+    \end{column}
+
+    \hfill\vrule\hfill
+
+    \begin{column}{0.48\textwidth}
+        \textbf{Irreducible $O(N^3)$ Operations}
+        \vspace{0.3em}
+        \hrule
+        \vspace{0.4em}
+        \small
+        \begin{itemize}
+            \setlength\itemsep{0.4em}
+            \item $\mathbf{X}\mathbf{A}_H\mathbf{X}^T$: bilinear form with dense $\mathbf{X}$ --- cannot be factored below $O(M^2N)$
+            \item Hungarian assignment: inherently $O(\min(M,N)^3)$
+            \item \textbf{Per-iteration:} $O(N^3)$ overall
+        \end{itemize}
+    \end{column}
+\end{columns}
+
+\vspace{0.5em}
+
+\begin{block}{Measured Speed vs.\ Other Kernels (drug-like molecules, $N{\approx}30$)}
+\centering\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lcr}
+\toprule
+\textbf{Kernel} & \textbf{Complexity} & \textbf{ms/pair} \\
+\midrule
+Weisfeiler--Lehman & $O(hN)$ & 0.1 -- 1 \\
+Shortest Path & $O(N^2)$ & 1 -- 5 \\
+\textbf{Our WCS-GNCCP (4,4)} & $\mathbf{T\!\cdot\!O(N^3)}$ & \textbf{$\sim$6} \\
+Random Walk & $O(N^3)$ & 10 -- 30 \\
+Optimal Assignment & $O(N^3)$ & 10 -- 50 \\
+\bottomrule
+\end{tabular}
+\end{block}
+\end{frame}
+
+% ============================================================
+% SLIDE 16: MATH OPTIMIZATION 2
+% ============================================================
+\begin{frame}{16. Algorithmic Optimization: Convergence \& Speed}
+\framesubtitle{Frank-Wolfe Duality Gap and Vectorization}
+
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \textbf{1. Frank-Wolfe Duality Gap}
+        \hrule
+        \vspace{0.4em}
+        \small
+        \begin{itemize}
+            \item \textit{Before:} Termination relied on a simple Frobenius norm difference between iterations, which lacked mathematical guarantees.
+            \item \textit{After:} We implemented the strict \textbf{Frank-Wolfe Duality Gap} condition ($g_t = \langle \nabla J, \mathbf{X} - \mathbf{Y} \rangle < \varepsilon$). This mathematically guarantees that the algorithm only stops when it reaches the true optimal topological match.
+        \end{itemize}
+    \end{column}
+
+    \hfill\vrule\hfill
+
+    \begin{column}{0.48\textwidth}
+        \textbf{2. Vectorized Precomputation}
+        \hrule
+        \vspace{0.4em}
+        \small
+        \begin{itemize}
+            \item \textit{Before:} Pairwise feature extractions caused massive redundant processing ($O(N^2)$ extractions).
+            \item \textit{After:} Molecular graphs and adjacency matrices are strictly precomputed and cached.
+            \item Feature comparisons were completely vectorized in NumPy, eliminating hundreds of nested loops per matching step.
+        \end{itemize}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+% SLIDE 17: BASELINE ACCURACY & THRESHOLDING
+% ============================================================
+\begin{frame}{17. 2D Kernel Baseline \& Thresholding Strategy}
+\framesubtitle{Measured Performance and Speed Optimisation}
+
+\begin{itemize}
+    \item \textbf{Empirical Results:} The optimized 2D WCS-GNCCP kernel was benchmarked across molecular datasets (Aromatase, LBD, MMP, p53) containing known active and inactive compounds.
+    \item \textbf{Performance:} 1-NN LOOCV classification accuracy of \textbf{80\%} on Aromatase (5+5 pilot); full benchmark range: \textbf{60--90\%} depending on target complexity.
+    \item \textbf{Speed:} ${\sim}6$\,ms/pair with \texttt{removeHs=True} (heavy atoms only, $N{\approx}30$), competitive with Random Walk kernels.
+    \item \textbf{Critical Speedup --- Hydrogen Removal:}
+    \begin{itemize}
+        \item With explicit H: $N{\approx}80$, ${\sim}27$\,ms/pair
+        \item Without H: $N{\approx}33$, ${\sim}6$\,ms/pair --- \textbf{4--5$\times$ faster}
+        \item Hydrogens are degree-1 leaf nodes that contribute zero topological information but cost $\sim(N_H/N_{\text{heavy}})^3 \approx 15\times$ compute
+    \end{itemize}
+    \item \textbf{Thresholding Strategy:} Similarity threshold $s > 0.7$ aggressively filters topologically distinct molecules, reducing the 3D candidate pool.
+\end{itemize}
+\end{frame}
+
+% --- SLIDE 18: SUMMARY OF WORK COMPLETED ---
+\begin{frame}{18. Summary of Work Completed}
+\small
+\begin{itemize}
+
+\item Performed literature survey on graph kernels, virtual screening, and 3D molecular similarity methods
+
+\item Defined the problem statement and proposed a two-stage 2D-to-3D filtering pipeline
+
+\item Collected the benchmark dataset (active and inactive molecules in 3D SDF format) from Liu et al.\ 2023
+
+\item Derived and proved the mathematical framework: Theorem~1 (structural gradient), Lemma~1 (rank-one factorization), Propositions~1--5 (GNCCP, kernel, normalization, projection)
+
+\item \textbf{Implemented the full WCS-GNCCP engine} in Python/NumPy with optional CuPy GPU support --- all 18 lines of Algorithm~1 map to code
+
+\item \textbf{Verified correctness:} smoke test (Benzene--Phenol, score 0.9955), full pipeline test (10 molecules, 1-NN 80\%, SVM functional)
+
+\item \textbf{Benchmarked speed:} ${\sim}6$\,ms/pair at $(4,4)$ iterations with hydrogen removal --- competitive with Random Walk and Optimal Assignment kernels
+
+\item Built Kaggle and Colab notebook generators for reproducible benchmarks
+
+\end{itemize}
+\end{frame}
+
+% --- SLIDE 19: PLANS FOR UPCOMING SEMESTERS ---
+\begin{frame}{19. Plans for Upcoming Semester}
+\small
+\begin{itemize}
+
+\item[\checkmark] \textit{(Complete)} Develop and verify the 2D WCS-GNCCP similarity module with mathematical proofs and benchmarks
+
+\item Implement the \textbf{3D alignment module}: use the bijective atom map $\mathbf{X}^*$ from Stage~1 as anchor points for Kabsch alignment ($O(n)$ per pair)
+
+\item Compute \textbf{RMSD-based 3D kernel}: $k_{\text{3D}} = \exp(-\gamma_{\text{3D}} \cdot \text{RMSD})$ for the filtered candidate pairs
+
+\item Design and evaluate the \textbf{hybrid kernel}: $k_{\text{hybrid}} = (1{-}\beta)\,k_{\text{2D}} + \beta\,k_{\text{3D}}$ with cross-validated $\beta$
+
+\item Run \textbf{full-scale benchmarks} across all available protein targets (Aromatase, LBD, MMP, p53, and others) with SVM and 1-NN classifiers
+
+\item Perform \textbf{ablation study}: 2D-only vs.\ 3D-only vs.\ hybrid, measuring accuracy and throughput
+
+\item Compare results with existing methods (WL, Random Walk, 3DGHK) and document findings
+
+\end{itemize}
+\end{frame}
+
+% ============================================================
+% SLIDE 20: NEXT STEPS
+% ============================================================
+\begin{frame}{20. Next Steps: 2D to 3D Spatial Mapping}
+\framesubtitle{Kabsch Alignment via the Bijective Atom Map}
+
+\begin{block}{Bridging Topology and Geometry}
+The 2D kernel outputs a bijective atom-to-atom matching matrix $\mathbf{X}^*$. This map serves as rigid anchor points for $O(n)$ 3D alignment --- no combinatorial search is repeated.
+\end{block}
+
+\vspace{0.3em}
+
+\begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+        \textbf{3D Alignment Pipeline}
+        \vspace{0.2em}\hrule\vspace{0.3em}
+        \small
+        \begin{enumerate}
+            \setlength\itemsep{0.3em}
+            \item Extract matched 3D coordinates from $\mathbf{X}^*$ --- $O(L)$
+            \item Compute centroids and center both point sets --- $O(L)$
+            \item Cross-covariance $\mathbf{H} = \mathbf{P}^T\mathbf{Q}$ --- always $3{\times}3$ --- $O(L)$
+            \item SVD of $\mathbf{H}$ --- $O(1)$ (fixed $3{\times}3$ matrix)
+            \item Optimal rotation $\mathbf{R} = \mathbf{V}\mathbf{U}^T$ and RMSD --- $O(L)$
+        \end{enumerate}
+        \vspace{0.3em}
+        \textbf{Total: $O(L) = O(n)$} per pair
+    \end{column}
+
+    \hfill\vrule\hfill
+
+    \begin{column}{0.43\textwidth}
+        \textbf{Hybrid Kernel}
+        \vspace{0.2em}\hrule\vspace{0.3em}
+        \small
+        \[
+            k_{\text{3D}} = e^{-\gamma_{\text{3D}} \cdot \text{RMSD}}
+        \]
+        \[
+            k_{\text{hybrid}} = (1{-}\beta)\,k_{\text{2D}} + \beta\,k_{\text{3D}}
+        \]
+        \begin{itemize}
+            \setlength\itemsep{0.3em}
+            \item $\beta$ cross-validated per target
+            \item 3D stage eliminates ``2D decoys'' (topological matches that clash in 3D space)
+        \end{itemize}
+    \end{column}
+\end{columns}
+
+\end{frame}
+
+% --- REFERENCES ---
+\section{References}
+\begin{frame}[allowframebreaks]{References}
+    \bibliographystyle{IEEEtran}
+    \bibliography{ref2} 
+\end{frame}
+
+% --- THANK YOU ---
+\begin{frame}
+    \centering    
+    {\Huge \textbf{\textcolor{amritaMaroon}{Thank You}}}
+\end{frame}
+
+\end{document}

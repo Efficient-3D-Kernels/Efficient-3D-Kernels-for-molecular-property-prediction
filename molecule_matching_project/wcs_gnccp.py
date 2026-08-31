@@ -76,10 +76,23 @@ class WCS_GNCCP:
             for i, j, _ in remaining[:needed]:
                 matches.append((i, j))
         
-        score = len(matches) / L if L > 0 else 0
+        # Calculate actual mathematical similarity using the objective F(X)
+        M, N = X.shape
+        I = np.ones((N, N))
+        U = X @ I @ X.T
+        struct_diff = U * A_G - X @ A_H @ X.T
+        struct_cost = np.sum(struct_diff ** 2)
+        app_cost = np.trace(C.T @ X)
+        
+        # The objective to minimize:
+        F_obj = self.alpha * struct_cost + (1 - self.alpha) * app_cost
+        
+        # Convert distance F_obj to a similarity score [0, 1]
+        # We use a scaled exponential to avoid immediate zeroing out
+        score = np.exp(-F_obj / (L * 10.0))
         
         if verbose:
-            print(f"✅ Found {len(matches)} matches (Score: {score:.3f})")
+            print(f"✅ Found {len(matches)} matches (Sim Score: {score:.3f} | F_obj: {F_obj:.3f})")
             print("="*60)
         
         return X, matches, score
@@ -112,6 +125,12 @@ class WCS_GNCCP:
                 w = 1.5
             else:
                 w = 1.0
+                
+            # Add micro-weights for 2D bond topology
+            if bond.IsInRing():
+                w += 0.1
+            if bond.GetIsConjugated():
+                w += 0.1
             
             pos_i = conf.GetAtomPosition(i)
             pos_j = conf.GetAtomPosition(j)
@@ -146,6 +165,19 @@ class WCS_GNCCP:
                 if f1['is_aromatic'] != f2['is_aromatic']:
                     C[i, j] += 10
                 C[i, j] += abs(f1['charge'] - f2['charge']) * 20
+                
+                # Incorporate remaining 2D features: mass and hybridization
+                C[i, j] += abs(f1['mass'] - f2['mass']) * 0.5
+                if f1['hybridization'] != f2['hybridization']:
+                    C[i, j] += 15
+                    
+                # Incorporate exhaustive 2D features
+                if f1['num_hs'] != f2['num_hs']:
+                    C[i, j] += 5
+                if f1['chiral_tag'] != f2['chiral_tag']:
+                    C[i, j] += 5
+                if f1['isotope'] != f2['isotope']:
+                    C[i, j] += 2
         
         return C
     
@@ -161,6 +193,9 @@ class WCS_GNCCP:
                 'mass': atom.GetMass(),
                 'charge': atom.GetFormalCharge(),
                 'hybridization': str(atom.GetHybridization()),
+                'num_hs': atom.GetTotalNumHs(),
+                'chiral_tag': str(atom.GetChiralTag()),
+                'isotope': atom.GetIsotope()
             })
         return features
     

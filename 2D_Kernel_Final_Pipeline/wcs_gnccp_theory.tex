@@ -1,0 +1,894 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{booktabs}
+
+\allowdisplaybreaks
+
+% ----- Standard theorem environments -----
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+\newtheorem{definition}{Definition}
+
+\begin{document}
+
+\title{Mathematical Foundations of the WCS-GNCCP\\Molecular Graph Kernel with Hierarchical\\2D--3D Alignment}
+
+\author{%
+\IEEEauthorblockN{Allampati Chenchu Sanhitha Reddy,
+Shaik Abdus Sattar,
+Geethika G Nair,
+Meera J Vaishnav}
+\IEEEauthorblockA{Department of Computer Science and Engineering\\
+Amrita Vishwa Vidyapeetham, Coimbatore\\
+Guide: Dr.\ T Ramraj}}
+
+\maketitle
+
+\begin{abstract}
+We present the mathematical foundations of a hierarchical molecular
+similarity kernel that combines 2D topological matching with 3D
+geometric alignment.  The 2D stage solves a Weighted Common Subgraph
+(WCS) problem via Graduated Non-Convexity and Concavity Procedure
+(GNCCP) with Frank-Wolfe optimization, producing both a similarity
+score and a bijective atom correspondence.  We derive a closed-form
+structural gradient (Theorem~\ref{thm:gradient}), prove a rank-one
+factorization that eliminates one cubic sub-operation per gradient
+evaluation (Lemma~\ref{lem:U-outer}), and establish scale invariance
+via Frobenius normalization (Proposition~\ref{prop:normalization}).
+The bijective map produced by Stage~1 reduces the 3D alignment
+(Stage~2) to a single $O(n)$ Kabsch rotation, yielding a hybrid kernel
+with per-pair complexity dominated by the 2D stage at
+$O(T_\zeta T_{\mathrm{FW}} n^3)$ --- empirically competitive with
+Random Walk and Optimal Assignment kernels on drug-like molecules.
+\end{abstract}
+
+
+% ===================================================================
+\section{Problem Formulation}
+\label{sec:formulation}
+% ===================================================================
+
+Let $G$ and $H$ be two molecular graphs with $M$ and $N$ atoms, respectively.
+Their topology is encoded by weighted adjacency matrices
+$\mathbf{A}_G \!\in\! \mathbb{R}^{M \times M}$ and
+$\mathbf{A}_H \!\in\! \mathbb{R}^{N \times N}$,
+where each entry reflects bond type (single, double, triple, aromatic)
+and topology (ring membership, conjugation).
+A cost matrix $\mathbf{C} \!\in\! \mathbb{R}^{M \times N}$ encodes pairwise
+atom-feature dissimilarity.
+
+\begin{definition}[Partial Permutation Polytope]
+\label{def:polytope}
+For an integer $L \leq \min(M, N)$, the partial permutation polytope is
+\begin{align}
+\mathcal{P}_L = \big\{ \mathbf{X} \in \{0,1\}^{M \times N} \;\big|\;
+  &\mathbf{X}\mathbf{1}_N \leq \mathbf{1}_M,\notag\\
+  &\mathbf{X}^{T}\mathbf{1}_M \leq \mathbf{1}_N,\notag\\
+  &\mathbf{1}_M^{T}\mathbf{X}\mathbf{1}_N = L \big\},
+\label{eq:polytope}
+\end{align}
+and its convex relaxation $\mathcal{D}_L$ replaces $\{0,1\}^{M \times N}$ with $[0,1]^{M \times N}$.
+An entry $X_{ij} = 1$ indicates that atom~$i$ in~$G$ is matched to atom~$j$ in~$H$.
+\end{definition}
+
+\begin{definition}[WCS Objective]
+\label{def:wcs-objective}
+The Weighted Common Subgraph (WCS) objective is
+\begin{equation}
+F(\mathbf{X}) = \alpha\, f(\mathbf{X})
+  + (1 - \alpha)\operatorname{tr}\!\big(\mathbf{C}^{T}\!\mathbf{X}\big),
+\label{eq:wcs-objective}
+\end{equation}
+where $\alpha \!\in\! [0,1]$ balances structure against atom features,
+\begin{equation}
+f(\mathbf{X})
+  = \big\| \mathbf{U} \circ \mathbf{A}_G
+    - \mathbf{X}\mathbf{A}_H\mathbf{X}^{T} \big\|_F^2
+\label{eq:structural}
+\end{equation}
+is the structural mismatch term, $\circ$ denotes the Hadamard product, and
+\begin{equation}
+\mathbf{U}
+  = \mathbf{X}\,\mathbf{1}_{N \times N}\,\mathbf{X}^{T}
+  \in \mathbb{R}^{M \times M}
+\label{eq:U-def}
+\end{equation}
+is the co-matching indicator.
+\end{definition}
+
+
+% ===================================================================
+\section{Computational Identity for $\mathbf{U}$}
+\label{sec:U-identity}
+% ===================================================================
+
+The matrix $\mathbf{U}$ in~\eqref{eq:U-def} involves the
+$N \!\times\! N$ all-ones matrix, requiring $O(MN^2 + M^2 N)$ work.
+We show that $\mathbf{U}$ admits a rank-one factorization
+that reduces this to $O(MN + M^2)$.
+
+\begin{lemma}[Rank-One Factorization of~$\mathbf{U}$]
+\label{lem:U-outer}
+Let\, $\mathbf{r} = \mathbf{X}\mathbf{1}_N \!\in\! \mathbb{R}^{M}$ be the
+row-sum vector. Then
+\begin{equation}
+\mathbf{U}
+  = \mathbf{X}\,\mathbf{1}_{N \times N}\,\mathbf{X}^{T}
+  = \mathbf{r}\,\mathbf{r}^{T}.
+\label{eq:U-outer}
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+Factor the all-ones matrix as
+$\mathbf{1}_{N \times N} = \mathbf{1}_N\,\mathbf{1}_N^{T}$:
+\begin{align}
+\mathbf{U}
+  &= \mathbf{X}\bigl(\mathbf{1}_N\,\mathbf{1}_N^{T}\bigr)\mathbf{X}^{T}
+\notag\\
+  &= \bigl(\mathbf{X}\mathbf{1}_N\bigr)
+     \bigl(\mathbf{X}\mathbf{1}_N\bigr)^{T}
+  = \mathbf{r}\,\mathbf{r}^{T}.\label{eq:U-proof}
+\end{align}
+\end{proof}
+
+\begin{remark}
+$\mathbf{U}$ is symmetric PSD with rank one.
+For binary $\mathbf{X} \!\in\! \mathcal{P}_L$ each $r_i \!\in\! \{0,1\}$,
+so $U_{ik} = 1$ iff both atoms $i,k$ are matched.
+\end{remark}
+
+
+% ===================================================================
+\section{Gradient of the Structural Term}
+\label{sec:gradient}
+% ===================================================================
+
+We derive $\nabla_{\!\mathbf{X}} f$ for the structural cost~\eqref{eq:structural}.
+
+\begin{theorem}[Structural Gradient]
+\label{thm:gradient}
+Define the residual
+$\mathbf{R} = \mathbf{U} \circ \mathbf{A}_G
+              - \mathbf{X}\mathbf{A}_H\mathbf{X}^{T}$.
+Then
+\begin{equation}
+\nabla_{\!\mathbf{X}} f
+  = 4\bigl(\mathbf{R} \circ \mathbf{A}_G\bigr)
+    \mathbf{X}\,\mathbf{1}_{N \times N}
+  - 4\,\mathbf{R}\,\mathbf{X}\,\mathbf{A}_H.
+\label{eq:gradient}
+\end{equation}
+
+Moreover, using Lemma~\ref{lem:U-outer}:
+\begin{equation}
+\bigl(\mathbf{R} \circ \mathbf{A}_G\bigr)
+  \mathbf{X}\,\mathbf{1}_{N \times N}
+= \Bigl[\bigl(\mathbf{R} \circ \mathbf{A}_G\bigr)\mathbf{X}\Bigr]
+  \mathbf{1}_N\mathbf{1}_N^{T},
+\label{eq:gradient-broadcast}
+\end{equation}
+a rank-one matrix whose $i$-th row repeats
+$\sum_{j}\bigl[(\mathbf{R}\!\circ\!\mathbf{A}_G)\mathbf{X}\bigr]_{ij}$.
+\end{theorem}
+
+\begin{proof}
+Write $f = \operatorname{tr}(\mathbf{R}^{T}\mathbf{R})$.
+By the chain rule,
+\begin{equation}
+\mathrm{d}f = 2\operatorname{tr}\!\bigl(\mathbf{R}^{T}\,\mathrm{d}\mathbf{R}\bigr).
+\label{eq:df}
+\end{equation}
+
+\emph{Part~1 (Hadamard term).}
+Since $\mathbf{A}_G$ is constant,
+\begin{equation}
+\mathrm{d}\bigl(\mathbf{U} \circ \mathbf{A}_G\bigr)
+  = \bigl(\mathrm{d}\mathbf{U}\bigr) \circ \mathbf{A}_G.
+\label{eq:dUA}
+\end{equation}
+From $\mathbf{U} = \mathbf{r}\,\mathbf{r}^{T}$
+with $\mathbf{r} = \mathbf{X}\mathbf{1}_N$:
+\begin{equation}
+\mathrm{d}\mathbf{U}
+  = (\mathrm{d}\mathbf{X}\,\mathbf{1}_N)\,\mathbf{r}^{T}
+  + \mathbf{r}\,(\mathrm{d}\mathbf{X}\,\mathbf{1}_N)^{T}.
+\label{eq:dU}
+\end{equation}
+
+\emph{Part~2 (Bilinear term).}
+By the product rule,
+\begin{align}
+\mathrm{d}\bigl(\mathbf{X}\mathbf{A}_H\mathbf{X}^{T}\bigr)
+  &= (\mathrm{d}\mathbf{X})\,\mathbf{A}_H\,\mathbf{X}^{T}
+\notag\\
+  &\quad+ \mathbf{X}\,\mathbf{A}_H\,(\mathrm{d}\mathbf{X})^{T}.
+\label{eq:dXAX}
+\end{align}
+
+\emph{Part~3 (Combining).}
+Substitute \eqref{eq:dUA}--\eqref{eq:dXAX} into~\eqref{eq:df}
+and apply the Hadamard trace identity
+\begin{equation*}
+\operatorname{tr}\!\bigl(\mathbf{A}^{T}(\mathbf{B}\!\circ\!\mathbf{C})\bigr)
+= \operatorname{tr}\!\bigl((\mathbf{A}\!\circ\!\mathbf{B})^{T}\mathbf{C}\bigr).
+\end{equation*}
+Collecting terms in $\mathrm{d}\mathbf{X}$: the Hadamard contribution
+yields $(\mathbf{R}\!\circ\!\mathbf{A}_G)\mathbf{X}\mathbf{1}_{N\times N}$
+and the bilinear contribution yields $-\mathbf{R}\mathbf{X}\mathbf{A}_H$.
+Since $\mathbf{R}$, $\mathbf{A}_G$, $\mathbf{U}$, and
+$\mathbf{X}\mathbf{A}_H\mathbf{X}^{T}$ are all symmetric,
+each of the two terms in~\eqref{eq:dU} and~\eqref{eq:dXAX}
+contributes equally, producing the factor of~$4$.
+\end{proof}
+
+\begin{remark}
+A common error is to differentiate $\mathbf{U} \circ \mathbf{A}_G$
+as if it were the matrix product $\mathbf{U}\mathbf{A}_G$.
+The Hadamard derivative is
+$\mathrm{d}(\mathbf{U}\!\circ\!\mathbf{A}_G) = (\mathrm{d}\mathbf{U})\!\circ\!\mathbf{A}_G$
+(element-wise), \emph{not} $(\mathrm{d}\mathbf{U})\mathbf{A}_G$.
+\end{remark}
+
+
+% ===================================================================
+\section{The GNCCP Continuation Method}
+\label{sec:gnccp}
+% ===================================================================
+
+Direct minimization of $F$ over $\mathcal{D}_L$ is nonconvex.
+GNCCP introduces $\zeta \!\in\! [-1,1]$ to deform the problem
+from convex to concave.
+
+\begin{definition}[GNCCP Objective]
+\label{def:Jzeta}
+For $\zeta \!\in\! [-1, 1]$, define
+\begin{equation}
+J_\zeta(\mathbf{X}) =
+\begin{cases}
+(1 - \zeta)\,F(\mathbf{X}) + \zeta\,\|\mathbf{X}\|_F^2
+  & \zeta \geq 0, \\[6pt]
+(1 + \zeta)\,F(\mathbf{X}) + \zeta\,\|\mathbf{X}\|_F^2
+  & \zeta < 0.
+\end{cases}
+\label{eq:Jzeta}
+\end{equation}
+\end{definition}
+
+\begin{proposition}[Endpoint Properties]
+\label{prop:endpoints}\hfill
+\begin{enumerate}
+\item $\zeta \!=\! +1$:\;
+  $J_{+1} = \|\mathbf{X}\|_F^2$ is strictly convex.
+  Its unique minimizer over $\mathcal{D}_L$ is the
+  uniform matrix $\mathbf{X}^{(0)} = \tfrac{L}{MN}\,\mathbf{1}_{M\times N}$.
+
+\item $\zeta \!=\! 0$:\;
+  $J_0 = F(\mathbf{X})$, the original WCS objective.
+
+\item $\zeta \!=\! -1$:\;
+  $J_{-1} = -\|\mathbf{X}\|_F^2$ is strictly concave.
+  Its minimizers over $\mathcal{D}_L$ are vertices,
+  i.e., partial permutation matrices in $\mathcal{P}_L$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1)~$\|\mathbf{X}\|_F^2 = \sum_{ij} X_{ij}^2$ is strictly convex.
+The unique minimizer distributes mass uniformly:
+$X_{ij} = L/(MN)$ satisfies all constraints
+and minimizes the sum of squares by Schur convexity.
+
+(2)~Direct substitution.
+
+(3)~$-\|\mathbf{X}\|_F^2$ is strictly concave.
+A strictly concave function attains its minimum
+over a compact convex polytope at a vertex.
+The vertices of~$\mathcal{D}_L$ are
+exactly the elements of~$\mathcal{P}_L$.
+\end{proof}
+
+\begin{proposition}[Gradient of $J_\zeta$]
+\label{prop:grad-Jzeta}
+\begin{equation}
+\nabla_{\!\mathbf{X}} J_\zeta\!=\!
+\begin{cases}
+(1 - \zeta)\,\nabla_{\!\mathbf{X}} F + 2\zeta\,\mathbf{X}
+  & \zeta \geq 0, \\[4pt]
+(1 + \zeta)\,\nabla_{\!\mathbf{X}} F + 2\zeta\,\mathbf{X}
+  & \zeta < 0,
+\end{cases}
+\label{eq:grad-Jzeta}
+\end{equation}
+where\;
+$\nabla_{\!\mathbf{X}} F
+  = \alpha\,\nabla_{\!\mathbf{X}} f + (1\!-\!\alpha)\,\mathbf{C}$\;
+and $\nabla_{\!\mathbf{X}} f$ is given by
+Theorem~\ref{thm:gradient}.
+\end{proposition}
+
+\begin{proof}
+$\nabla\|\mathbf{X}\|_F^2 = 2\mathbf{X}$.
+Apply linearity to~\eqref{eq:Jzeta}.
+\end{proof}
+
+
+% ===================================================================
+\section{Frank-Wolfe Optimization}
+\label{sec:frank-wolfe}
+% ===================================================================
+
+For each fixed~$\zeta$ we solve
+$\min_{\mathbf{X} \in \mathcal{D}_L} J_\zeta(\mathbf{X})$
+via Frank-Wolfe (conditional gradient).
+
+\begin{definition}[Linear Minimization Oracle]
+\label{def:lmo}
+At iterate $\mathbf{X}_t$, the FW direction is
+\begin{equation}
+\mathbf{Y}_t
+  = \arg\min_{\mathbf{Y} \in \mathcal{D}_L}
+    \bigl\langle \nabla J_\zeta(\mathbf{X}_t),\,\mathbf{Y}\bigr\rangle.
+\label{eq:lmo}
+\end{equation}
+Since the minimum of a linear function over a polytope
+is attained at a vertex, $\mathbf{Y}_t \!\in\! \mathcal{P}_L$.
+The optimal vertex is found by the Hungarian algorithm
+in $O\!\bigl(\min(M,N)^3\bigr)$ time.
+\end{definition}
+
+\begin{theorem}[Frank-Wolfe Duality Gap]
+\label{thm:fw-gap}
+Let $J_\zeta$ be convex on $\mathcal{D}_L$ and let
+$\mathbf{X}^{\!*} = \arg\min_{\mathcal{D}_L} J_\zeta$.
+The Frank-Wolfe gap
+\begin{equation}
+g_t
+  = \bigl\langle \nabla J_\zeta(\mathbf{X}_t),\;
+    \mathbf{X}_t - \mathbf{Y}_t \bigr\rangle
+\label{eq:fw-gap}
+\end{equation}
+satisfies:\;
+\textup{(i)}~$g_t \geq 0$;\;
+\textup{(ii)}~$g_t \geq J_\zeta(\mathbf{X}_t) - J_\zeta(\mathbf{X}^{\!*})$;\;
+\textup{(iii)}~$g_t = 0 \Leftrightarrow \mathbf{X}_t$ is optimal.
+\end{theorem}
+
+\begin{proof}
+\emph{(i)}
+$\mathbf{Y}_t$ minimizes the linear form over $\mathcal{D}_L$
+and $\mathbf{X}_t \!\in\! \mathcal{D}_L$, so
+$\langle\nabla J_\zeta,\mathbf{Y}_t\rangle
+ \leq \langle\nabla J_\zeta,\mathbf{X}_t\rangle$,
+giving $g_t \geq 0$.
+
+\emph{(ii)}
+By convexity:
+\begin{equation}
+J_\zeta(\mathbf{X}^{\!*})
+  \geq J_\zeta(\mathbf{X}_t)
+  + \bigl\langle\nabla J_\zeta(\mathbf{X}_t),\,
+    \mathbf{X}^{\!*}\!-\!\mathbf{X}_t\bigr\rangle.
+\label{eq:convexity-lb}
+\end{equation}
+Since $\mathbf{Y}_t$ is the minimizer and
+$\mathbf{X}^{\!*}\!\in\!\mathcal{D}_L$:
+\begin{equation}
+\bigl\langle\nabla J_\zeta(\mathbf{X}_t),\,
+  \mathbf{X}^{\!*}\!-\!\mathbf{X}_t\bigr\rangle
+\geq \bigl\langle\nabla J_\zeta(\mathbf{X}_t),\,
+  \mathbf{Y}_t\!-\!\mathbf{X}_t\bigr\rangle
+= -g_t.
+\label{eq:gap-ineq}
+\end{equation}
+Combining \eqref{eq:convexity-lb}--\eqref{eq:gap-ineq}:
+$g_t \geq J_\zeta(\mathbf{X}_t) - J_\zeta(\mathbf{X}^{\!*})$.
+
+\emph{(iii)}
+If $\mathbf{X}_t$ is optimal, first-order optimality gives
+$\langle\nabla J_\zeta,\mathbf{Y}\!-\!\mathbf{X}_t\rangle \!\geq\! 0$
+$\forall\,\mathbf{Y}\!\in\!\mathcal{D}_L$, so $g_t = 0$.
+Conversely, $g_t = 0$ with~(ii) gives
+$J_\zeta(\mathbf{X}_t) \leq J_\zeta(\mathbf{X}^{\!*})$.
+\end{proof}
+
+\begin{remark}
+When $J_\zeta$ is nonconvex ($\zeta \!<\! 0$),
+the gap~\eqref{eq:fw-gap} is no longer a certified
+suboptimality bound, but $g_t = 0$ still implies
+$\mathbf{X}_t$ is a stationary point.
+We use $g_t < \varepsilon$ as early termination for all~$\zeta$.
+\end{remark}
+
+
+% ===================================================================
+\section{Kernel Properties}
+\label{sec:kernel}
+% ===================================================================
+
+\begin{proposition}[Exponential Graph Similarity Kernel]
+\label{prop:psd}
+The exponential mapping
+\begin{equation}
+k(G, H) = \exp\!\Bigl(-\frac{\gamma\, F^{\!*}_{GH}}{L}\Bigr)
+\label{eq:kernel}
+\end{equation}
+where $\gamma > 0$ is a bandwidth parameter and $F^{\!*}_{GH}$
+is the optimal WCS objective, defines a discriminative
+similarity measure satisfying:
+\begin{enumerate}
+\item $k(G, H) \in (0, 1]$ for all graph pairs;
+\item $k(G, G) = 1$ when $G$ is matched to itself;
+\item $k$ is monotonically decreasing in $F^{\!*}_{GH}$.
+\end{enumerate}
+\end{proposition}
+
+\begin{remark}
+The kernel~\eqref{eq:kernel} is generally \emph{not}
+positive semi-definite in the Mercer sense,
+since optimal-assignment and graph-edit distances do not
+satisfy conditional negative definiteness
+(cf.\ Schoenberg~\cite{schoenberg1938metric}).
+This is not a limitation for distance-based classifiers
+such as $k$-NN (which rely on ranking, not inner products)
+or for SVM with eigenvalue ridge correction
+($\mathbf{K}_{\text{psd}} = \mathbf{K} + \mu\mathbf{I}$,
+$\mu \geq |\lambda_{\min}|$).
+\end{remark}
+
+\begin{remark}
+$\gamma$ controls bandwidth:
+small $\gamma$ spreads kernel values (all pairs appear similar),
+large $\gamma$ concentrates mass on near-identical pairs.
+We default to $\gamma = 0.5$ and normalize by $\max(L,1)$
+for size invariance.
+\end{remark}
+
+
+% ===================================================================
+\section{Scale Invariance}
+\label{sec:normalization}
+% ===================================================================
+
+\begin{proposition}[Frobenius Normalization]
+\label{prop:normalization}
+Let $\hat{\mathbf{A}}_G = \mathbf{A}_G / \|\mathbf{A}_G\|_F$
+and $\hat{\mathbf{A}}_H = \mathbf{A}_H / \|\mathbf{A}_H\|_F$.
+Then
+\begin{equation}
+\hat{f}(\mathbf{X})
+  = \bigl\| \mathbf{U} \circ \hat{\mathbf{A}}_G
+    - \mathbf{X}\hat{\mathbf{A}}_H\mathbf{X}^{T} \bigr\|_F^2
+  \leq 2
+\label{eq:normalized-cost}
+\end{equation}
+for all $\mathbf{X} \!\in\! \mathcal{D}_L$,
+independently of the number of bonds.
+\end{proposition}
+
+\begin{proof}
+By the identity
+$\|\mathbf{A}\!-\!\mathbf{B}\|_F^2
+= \|\mathbf{A}\|_F^2 + \|\mathbf{B}\|_F^2
+- 2\langle\mathbf{A},\mathbf{B}\rangle$,
+it suffices to bound each squared norm.
+
+For the Hadamard term, using
+$\|\mathbf{A}\!\circ\!\mathbf{B}\|_F
+\leq \|\mathbf{A}\|_{\max}\|\mathbf{B}\|_F$
+with $U_{ik} = r_i r_k \leq 1$ for
+$\mathbf{X}\!\in\!\mathcal{D}_L$:
+\begin{equation}
+\bigl\|\mathbf{U}\circ\hat{\mathbf{A}}_G\bigr\|_F
+  \leq 1 \cdot \|\hat{\mathbf{A}}_G\|_F = 1.
+\label{eq:bound1}
+\end{equation}
+
+For the bilinear term, since $\|\mathbf{X}\|_2 \leq 1$
+for sub-stochastic~$\mathbf{X}$:
+\begin{equation}
+\bigl\|\mathbf{X}\hat{\mathbf{A}}_H\mathbf{X}^{T}\bigr\|_F
+  \leq \|\mathbf{X}\|_2^2\,\|\hat{\mathbf{A}}_H\|_F
+  \leq 1.
+\label{eq:bound2}
+\end{equation}
+
+Therefore
+$\hat{f} \leq \|\mathbf{U}\!\circ\!\hat{\mathbf{A}}_G\|_F^2
+  + \|\mathbf{X}\hat{\mathbf{A}}_H\mathbf{X}^{T}\|_F^2
+  \leq 2$.
+\end{proof}
+
+\begin{remark}
+Without normalization, $f(\mathbf{X})$ scales with
+$\|\mathbf{A}_G\|_F^2\!+\!\|\mathbf{A}_H\|_F^2$,
+which grows linearly in the number of bonds.
+For~30 bonds at weight~${\sim}1.5$,
+$\|\mathbf{A}_G\|_F \!\approx\! 9.5$,
+making the structural cost ${\sim}90\!\times$ larger
+than the appearance cost
+$\operatorname{tr}(\mathbf{C}^{T}\!\mathbf{X}) \!\in\! [0,L]$.
+Normalization restores the balance intended by~$\alpha$.
+\end{remark}
+
+
+% ===================================================================
+\section{Projection onto $\mathcal{D}_L$}
+\label{sec:projection}
+% ===================================================================
+
+\begin{proposition}[Sinkhorn-Knopp Projection]
+\label{prop:sinkhorn}
+Let $\mathbf{X}\!\in\!\mathbb{R}_{\geq 0}^{M \times N}$ with
+$\|\mathbf{X}\|_1 > 0$. The iteration
+
+\smallskip\noindent
+\textup{1.}~\textbf{Scale}: $\mathbf{X} \leftarrow \mathbf{X}\cdot(L/\|\mathbf{X}\|_1)$.\\
+\textup{2.}~\textbf{Row cap}: if $(\mathbf{X}\mathbf{1}_N)_i > 1$,
+  divide row~$i$ by $(\mathbf{X}\mathbf{1}_N)_i$.\\
+\textup{3.}~\textbf{Col cap}: if $(\mathbf{X}^{T}\!\mathbf{1}_M)_j > 1$,
+  divide col~$j$ by $(\mathbf{X}^{T}\!\mathbf{1}_M)_j$.\\
+\textup{4.}~Repeat \textup{1--3} until convergence.
+
+\smallskip\noindent
+converges to a feasible point in $\mathcal{D}_L$
+when $L \leq \min(M,N)$.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Steps~2--3 are alternating projections onto
+$\mathcal{R}\!=\!\{\mathbf{X}\!\geq\!0 : \mathbf{X}\mathbf{1}\!\leq\!\mathbf{1}\}$
+and
+$\mathcal{C}\!=\!\{\mathbf{X}\!\geq\!0 : \mathbf{X}^{T}\!\mathbf{1}\!\leq\!\mathbf{1}\}$,
+both convex and closed.
+Step~1 enforces $\|\mathbf{X}\|_1\!=\!L$.
+By Dykstra's theorem, this converges when the intersection
+is non-empty.
+The uniform matrix $\frac{L}{MN}\mathbf{1}_{M\times N}$
+lies in all three constraint sets, so the intersection is non-empty.
+\end{proof}
+
+
+% ===================================================================
+\section{Computational Complexity Analysis}
+\label{sec:complexity}
+% ===================================================================
+
+We provide an honest, operation-level complexity analysis
+of each Frank-Wolfe iteration.
+
+\begin{theorem}[Per-Iteration Complexity]
+\label{thm:complexity}
+Let $M,N$ denote the atom counts and let $d$ be the maximum
+vertex degree of the molecular graphs.
+One Frank-Wolfe iteration of Algorithm~\ref{alg:gnccp-fw}
+has complexity
+\begin{equation}
+\Theta\!\bigl(\underbrace{M^2 N}_{\mathbf{X}\mathbf{A}_H\mathbf{X}^T}
++ \underbrace{\min(M,N)^3}_{\text{Hungarian}}\bigr).
+\label{eq:iter-complexity}
+\end{equation}
+For $M \!\approx\! N$, this simplifies to $\Theta(n^3)$.
+\end{theorem}
+
+\begin{proof}
+We enumerate the dominant operations per iteration:
+
+\smallskip\noindent
+\emph{(a) Row sums:}
+$\mathbf{r} = \mathbf{X}\mathbf{1}_N$ costs $O(MN)$.
+
+\smallskip\noindent
+\emph{(b) Co-matching indicator (Lemma~\ref{lem:U-outer}):}
+$\mathbf{U} = \mathbf{r}\mathbf{r}^T$ costs $O(M^2)$.
+Without Lemma~\ref{lem:U-outer}, the na\"ive computation
+via~\eqref{eq:U-def} costs $O(MN^2 + M^2 N)$.
+
+\smallskip\noindent
+\emph{(c) Bilinear form:}
+$\mathbf{P} = \mathbf{X}\mathbf{A}_H$ costs $O(M \cdot \mathrm{nnz}(\mathbf{A}_H))$;
+for molecular graphs with bounded degree~$d$,
+$\mathrm{nnz}(\mathbf{A}_H) = O(dN)$,
+so $\mathbf{P}$ costs $O(MdN) \approx O(MN)$.
+However, $\mathbf{P}\mathbf{X}^T$ is an
+$(M\!\times\!N)(N\!\times\!M)$ product costing $O(M^2 N)$.
+This is irreducible for dense~$\mathbf{X}$.
+
+\smallskip\noindent
+\emph{(d) Gradient terms:}
+$({\mathbf{R}\!\circ\!\mathbf{A}_G})\mathbf{X}$ costs
+$O(\mathrm{nnz}(\mathbf{A}_G)\!\cdot\!N) = O(dMN)$;
+$\mathbf{R}\mathbf{X}\mathbf{A}_H$ costs $O(M^2 N + MdN)$.
+
+\smallskip\noindent
+\emph{(e) Hungarian algorithm:}
+$O(\min(M,N)^3)$; this is tight (Kuhn--Munkres).
+
+\smallskip\noindent
+\emph{(f) Projection:}
+$O(MN)$ per Sinkhorn iteration, bounded at 20 iterations.
+
+\smallskip\noindent
+The dominant terms are~(c) and~(e), giving~\eqref{eq:iter-complexity}.
+\end{proof}
+
+\begin{corollary}[Reduction from Lemma~\ref{lem:U-outer}]
+\label{cor:reduction}
+The rank-one factorization eliminates one $O(MN^2 + M^2 N)$
+operation per gradient evaluation, reducing it to $O(MN + M^2)$.
+For $M \!=\! N \!=\! n$, this is a reduction from $O(n^3)$ to $O(n^2)$
+for the $\mathbf{U}$ computation alone.
+The overall per-iteration complexity remains
+$\Theta(n^3)$ due to the bilinear form~(c) and
+Hungarian assignment~(e).
+\end{corollary}
+
+\begin{corollary}[Total Per-Pair Complexity]
+\label{cor:total}
+With $T_\zeta$ GNCCP outer iterations and $T_{\mathrm{FW}}$
+Frank-Wolfe inner iterations, the total per-pair cost is
+\begin{equation}
+O\!\bigl(T_\zeta\, T_{\mathrm{FW}}\, n^3\bigr).
+\label{eq:total-complexity}
+\end{equation}
+In practice, early termination via the FW duality gap
+(Theorem~\ref{thm:fw-gap}) reduces the effective
+iteration count well below the worst case.
+\end{corollary}
+
+\begin{remark}[Practical Competitiveness]
+For drug-like molecules ($n \!\leq\! 50$),
+the cubic cost per iteration is sub-millisecond.
+With $(T_\zeta, T_{\mathrm{FW}}) = (4, 4)$ and hydrogen
+removal ($n \!\approx\! 30$ heavy atoms), the measured
+per-pair time is ${\sim}6$\,ms on CPU ---
+competitive with Random Walk ($O(n^3)$, ${\sim}10$--$30$\,ms)
+and Optimal Assignment kernels ($O(n^3)$, ${\sim}10$--$50$\,ms),
+while producing a richer output (bijective atom map
+in addition to similarity score).
+\end{remark}
+
+
+% ===================================================================
+\section{Stage 2: 3D Alignment via Kabsch Rotation}
+\label{sec:3d-alignment}
+% ===================================================================
+
+The bijective atom correspondence $\mathbf{X}^*$ from Stage~1
+induces a set of $L$ matched atom pairs
+$\mathcal{M} = \{(i,j) : X^*_{ij} = 1\}$.
+We exploit this mapping to perform 3D alignment in $O(L)$ time.
+
+\begin{definition}[Matched Coordinate Sets]
+\label{def:matched-coords}
+Let $\mathbf{p}_1, \ldots, \mathbf{p}_L \in \mathbb{R}^3$
+and $\mathbf{q}_1, \ldots, \mathbf{q}_L \in \mathbb{R}^3$
+be the 3D coordinates of the matched atoms in molecules
+$G$ and $H$ respectively, ordered according to $\mathcal{M}$.
+Define centered coordinates
+$\bar{\mathbf{p}}_l = \mathbf{p}_l - \boldsymbol{\mu}_P$ and
+$\bar{\mathbf{q}}_l = \mathbf{q}_l - \boldsymbol{\mu}_Q$,
+where $\boldsymbol{\mu}_P = \frac{1}{L}\sum_l \mathbf{p}_l$
+and $\boldsymbol{\mu}_Q = \frac{1}{L}\sum_l \mathbf{q}_l$.
+\end{definition}
+
+\begin{theorem}[Kabsch Alignment]
+\label{thm:kabsch}
+The rotation matrix $\mathbf{R}^* \in \mathrm{SO}(3)$ that
+minimizes the RMSD
+\begin{equation}
+\mathrm{RMSD}^2 = \frac{1}{L}
+  \sum_{l=1}^{L} \|\mathbf{R}\bar{\mathbf{p}}_l - \bar{\mathbf{q}}_l\|^2
+\label{eq:rmsd}
+\end{equation}
+is given by
+\begin{equation}
+\mathbf{R}^* = \mathbf{V}
+  \begin{pmatrix} 1 & & \\ & 1 & \\ & & \det(\mathbf{V}\mathbf{W}^T) \end{pmatrix}
+  \mathbf{W}^T,
+\label{eq:kabsch-rotation}
+\end{equation}
+where $\mathbf{H} = \bar{\mathbf{P}}^T \bar{\mathbf{Q}} \in \mathbb{R}^{3 \times 3}$
+is the cross-covariance matrix and $\mathbf{H} = \mathbf{W}\boldsymbol{\Sigma}\mathbf{V}^T$
+is its SVD.
+\end{theorem}
+
+\begin{proof}
+Standard; see Kabsch (1976).
+The key observation is that $\mathbf{H}$ is always $3 \times 3$
+regardless of $L$, so its SVD costs $O(1)$.
+The total cost is dominated by forming $\mathbf{H}$, which
+requires $O(L)$ vector operations.
+\end{proof}
+
+\begin{corollary}[Stage 2 Complexity]
+\label{cor:stage2}
+Given the atom map $\mathcal{M}$ from Stage~1, the 3D
+alignment and RMSD computation cost $O(L) = O(n)$.
+\end{corollary}
+
+\begin{definition}[Hybrid Kernel]
+\label{def:hybrid}
+The two-stage similarity measure combines 2D topological
+and 3D geometric information:
+\begin{equation}
+k_{\text{hybrid}}(G, H)
+  = (1 - \beta)\, k_{\text{2D}}(G, H)
+  + \beta\, k_{\text{3D}}(G, H),
+\label{eq:hybrid-kernel}
+\end{equation}
+where
+$k_{\text{2D}} = \exp(-\gamma_{\text{2D}} F^*/L)$ is the
+topological kernel from~\eqref{eq:kernel},
+$k_{\text{3D}} = \exp(-\gamma_{\text{3D}} \cdot \mathrm{RMSD})$
+is the geometric kernel,
+and $\beta \in [0,1]$ is cross-validated per target.
+\end{definition}
+
+\begin{remark}[Overall Pipeline Complexity]
+The total per-pair cost of the hierarchical pipeline is
+\begin{equation}
+\underbrace{O(T_\zeta T_{\mathrm{FW}} n^3)}_{\text{Stage 1: 2D kernel}}
++ \underbrace{O(n)}_{\text{Stage 2: 3D alignment}}
+= O(T_\zeta T_{\mathrm{FW}} n^3),
+\label{eq:pipeline-complexity}
+\end{equation}
+completely dominated by Stage~1.
+The 2D stage serves as a search-space reduction gate:
+only candidates with $k_{\text{2D}} > \tau$
+(a tunable threshold) proceed to Stage~2.
+For a library of $P$ molecules with filtration rate~$\phi$,
+the total screening cost is
+\begin{equation}
+\underbrace{O\!\left(\binom{P}{2} T_\zeta T_{\mathrm{FW}} n^3\right)}_{\text{2D pairwise kernel matrix}}
++ \underbrace{O(\phi P^2 n)}_{\text{3D alignment of filtered pairs}}.
+\label{eq:screening-cost}
+\end{equation}
+With aggressive filtering ($\phi \!\ll\! 1$), the 3D
+cost becomes negligible.
+\end{remark}
+
+
+% ===================================================================
+\section{Relabeling Invariance}
+\label{sec:invariance}
+% ===================================================================
+
+\begin{proposition}[Relabeling Invariance]
+\label{prop:invariance}
+Let $\mathbf{P} \!\in\! \{0,1\}^{M \times M}$ and
+$\mathbf{Q} \!\in\! \{0,1\}^{N \times N}$ be permutation
+matrices, and let
+$\mathbf{A}'_G = \mathbf{P}\mathbf{A}_G\mathbf{P}^T$,
+$\mathbf{A}'_H = \mathbf{Q}\mathbf{A}_H\mathbf{Q}^T$.
+Then for any $\mathbf{X} \!\in\! \mathcal{D}_L$,
+\begin{equation}
+F\!\bigl(\mathbf{P}\mathbf{X}\mathbf{Q}^T;\,
+  \mathbf{A}'_G, \mathbf{A}'_H, \mathbf{C}'\bigr)
+= F\!\bigl(\mathbf{X};\,
+  \mathbf{A}_G, \mathbf{A}_H, \mathbf{C}\bigr),
+\label{eq:invariance}
+\end{equation}
+where $\mathbf{C}' = \mathbf{P}\mathbf{C}\mathbf{Q}^T$.
+\end{proposition}
+
+\begin{proof}
+Let $\mathbf{X}' = \mathbf{P}\mathbf{X}\mathbf{Q}^T$.
+Then $\mathbf{X}'\mathbf{A}'_H(\mathbf{X}')^T
+= \mathbf{P}\mathbf{X}\mathbf{A}_H\mathbf{X}^T\mathbf{P}^T$
+and $\mathbf{U}' \circ \mathbf{A}'_G
+= \mathbf{P}(\mathbf{U}\!\circ\!\mathbf{A}_G)\mathbf{P}^T$.
+The Frobenius norm is unitarily invariant:
+$\|\mathbf{P}\mathbf{M}\mathbf{P}^T\|_F = \|\mathbf{M}\|_F$.
+The trace term satisfies
+$\operatorname{tr}((\mathbf{C}')^T\mathbf{X}')
+= \operatorname{tr}(\mathbf{C}^T\mathbf{X})$
+by the cyclic property of trace.
+\end{proof}
+
+
+% ===================================================================
+\section{Full Algorithm}
+\label{sec:algorithm}
+% ===================================================================
+
+{\small
+\begin{algorithm}[H]
+\caption{WCS-GNCCP with Frank-Wolfe}
+\label{alg:gnccp-fw}
+\begin{algorithmic}[1]
+\REQUIRE $\mathbf{A}_G,\mathbf{A}_H$; cost $\mathbf{C}$;
+  size $L$; weights $\alpha,\gamma$
+\ENSURE Similarity score $k \!\in\! (0, 1]$
+  and atom map $\mathcal{M}$
+\STATE $\hat{\mathbf{A}}_G \leftarrow
+  \mathbf{A}_G / \|\mathbf{A}_G\|_F$;\;
+  $\hat{\mathbf{A}}_H \leftarrow
+  \mathbf{A}_H / \|\mathbf{A}_H\|_F$
+  \hfill\COMMENT{Prop.~\ref{prop:normalization}}
+\STATE $\hat{\mathbf{C}} \leftarrow
+  (\mathbf{C}\!-\!C_{\min})/(C_{\max}\!-\!C_{\min})$
+\STATE $\mathbf{X} \leftarrow
+  \frac{L}{MN}\mathbf{1}_{M\times N}$
+  \hfill\COMMENT{Prop.~\ref{prop:endpoints}(1)}
+\FOR{$\zeta = 1, 1\!-\!\Delta\zeta, \ldots, -1$}
+  \FOR{$t = 1, \ldots, T_{\text{FW}}$}
+    \STATE $\nabla \leftarrow
+      \nabla_{\!\mathbf{X}} J_\zeta$
+      \hfill\COMMENT{Prop.~\ref{prop:grad-Jzeta}}
+    \STATE $\mathbf{Y} \leftarrow
+      \text{Hungarian}(\nabla)$
+      \hfill\COMMENT{Def.~\ref{def:lmo}}
+    \STATE $g \leftarrow
+      \langle \nabla,\,\mathbf{X}\!-\!\mathbf{Y}\rangle$
+      \hfill\COMMENT{Thm.~\ref{thm:fw-gap}}
+    \IF{$g < \varepsilon$}
+      \STATE \textbf{break}
+    \ENDIF
+    \STATE $\lambda \leftarrow
+      \text{ArmijoLS}(\mathbf{X},\mathbf{Y},J_\zeta)$
+    \STATE $\mathbf{X} \leftarrow
+      \text{Sinkhorn}\!\bigl(
+        \mathbf{X}\!+\!\lambda(\mathbf{Y}\!-\!\mathbf{X}),\,L
+      \bigr)$
+      \hfill\COMMENT{Prop.~\ref{prop:sinkhorn}}
+  \ENDFOR
+\ENDFOR
+\STATE $\mathbf{X}^{\!*} \leftarrow
+  \text{Hungarian}(-\mathbf{X})$
+  \hfill\COMMENT{discretize}
+\STATE $\mathcal{M} \leftarrow
+  \{(i,j) : X^*_{ij} = 1\}$
+  \hfill\COMMENT{atom map}
+\STATE $F^{\!*} \leftarrow
+  F(\mathbf{X}^{\!*})$
+  \hfill\COMMENT{Def.~\ref{def:wcs-objective}}
+\RETURN $k = \exp(-\gamma F^{\!*}/L)$,\;$\mathcal{M}$
+  \hfill\COMMENT{Prop.~\ref{prop:psd}}
+\end{algorithmic}
+\end{algorithm}
+}
+
+
+\begin{thebibliography}{9}
+\bibitem{schoenberg1938metric}
+I.~J.~Schoenberg,
+``Metric spaces and positive definite functions,''
+\textit{Trans.\ Amer.\ Math.\ Soc.},
+vol.~44, no.~3, pp.~522--536, 1938.
+
+\bibitem{kabsch1976solution}
+W.~Kabsch,
+``A solution for the best rotation to relate two sets of vectors,''
+\textit{Acta Crystallographica Section A},
+vol.~32, no.~5, pp.~922--923, 1976.
+
+\bibitem{frank1956algorithm}
+M.~Frank and P.~Wolfe,
+``An algorithm for quadratic programming,''
+\textit{Naval Research Logistics Quarterly},
+vol.~3, no.~1--2, pp.~95--110, 1956.
+
+\bibitem{liu2015graduated}
+Z.-Y.~Liu and H.~Qiao,
+``GNCCP --- graduated non-convexity and concavity procedure,''
+\textit{IEEE Trans.\ Pattern Anal.\ Mach.\ Intell.},
+vol.~36, no.~6, pp.~1258--1267, 2014.
+
+\bibitem{kuhn1955hungarian}
+H.~W.~Kuhn,
+``The Hungarian method for the assignment problem,''
+\textit{Naval Research Logistics Quarterly},
+vol.~2, no.~1--2, pp.~83--97, 1955.
+\end{thebibliography}
+
+\end{document}
