@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation — Cross-Domain Graph Matching</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">Cross-Domain Graph Matching <small>· Team 11</small></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="methodology.html">Methodology</a></li>
+      <li><a href="team.html">Team</a></li>
+      <li><a href="progress.html">Progress</a></li>
+      <li><a href="docs.html" aria-current="page">Documentation</a></li>
+    </ul>
+    <a class="gh-btn" href="https://github.com/Efficient-3D-Kernels/Efficient-3D-Kernels-for-molecular-property-prediction" target="_blank" rel="noopener">View on GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="page-header">
+      <p class="eyebrow">Documentation</p>
+      <h1>Source, theory, and references</h1>
+      <p class="subtitle">Everything needed to reproduce or extend the pipeline.</p>
+    </div>
+
+    <section>
+      <h2>Resources</h2>
+      <ul class="doc-list">
+        <li>
+          <div>
+            <a href="https://github.com/Efficient-3D-Kernels/Efficient-3D-Kernels-for-molecular-property-prediction" target="_blank" rel="noopener">GitHub repository</a>
+            <div class="desc">Source code, experiment scripts, and datasets configuration for all three domains.</div>
+          </div>
+          <div class="doc-meta">Code</div>
+        </li>
+        <li>
+          <div>
+            <a href="#theory">Mathematical Foundations of the WCS-GNCCP Molecular Graph Kernel</a>
+            <div class="desc">In-house theoretical paper deriving the closed-form structural gradient, rank-one factorization, and complexity bounds used in Stage 1.</div>
+          </div>
+          <div class="doc-meta">Internal paper</div>
+        </li>
+        <li>
+          <div>
+            <span>Yang, Qiao &amp; Liu — "An Algorithm for Finding the Most Similar Given Sized Subgraphs in Two Weighted Graphs," IEEE TNNLS, 2018</span>
+            <div class="desc">Foundational WCS matching formulation and GNCCP-based optimization that this project builds on and extends.</div>
+          </div>
+          <div class="doc-meta">Reference</div>
+        </li>
+      </ul>
+    </section>
+
+    <section id="theory">
+      <h2>Theoretical foundations — summary</h2>
+      <p class="prose">The team's internal paper establishes the following results underlying the implementation:</p>
+      <ol class="theorem-list">
+        <li><strong>Lemma 1 (Rank-One Factorization):</strong> the co-matching indicator U = X·1·Xᵀ simplifies to a rank-one outer product r·rᵀ, cutting its computation from O(MN² + M²N) to O(MN + M²).</li>
+        <li><strong>Theorem 1 (Structural Gradient):</strong> a closed-form gradient for the Hadamard-product structural mismatch term, avoiding the need for numerical differentiation.</li>
+        <li><strong>Theorem 2 (Frank-Wolfe Duality Gap):</strong> a certified suboptimality bound used for early termination during optimization.</li>
+        <li><strong>Proposition 4 (Frobenius Normalization):</strong> scale-invariant adjacency normalization so structural cost stays comparable across graphs of very different size and edge weight, from 40-node social graphs to 500-atom crystal structures.</li>
+        <li><strong>Theorem 4 (Kabsch Alignment):</strong> the closed-form O(n) 3D rigid alignment used in Stage 2, reusing the Stage 1 correspondence directly.</li>
+        <li><strong>Theorem 3 (Per-Iteration Complexity):</strong> an operation-level complexity analysis showing the pipeline's cost is dominated by the bilinear term and the Hungarian assignment step, Θ(n³) for M ≈ N.</li>
+      </ol>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Cross-Domain Weighted Graph Matching Project · Department of Computer Science and Engineering · Amrita Vishwa Vidyapeetham, Coimbatore
+  </div>
+</footer>
+
+</body>
+</html>

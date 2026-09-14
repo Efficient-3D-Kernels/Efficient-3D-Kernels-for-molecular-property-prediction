@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progress — Cross-Domain Graph Matching</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">Cross-Domain Graph Matching <small>· Team 11</small></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="methodology.html">Methodology</a></li>
+      <li><a href="team.html">Team</a></li>
+      <li><a href="progress.html" aria-current="page">Progress</a></li>
+      <li><a href="docs.html">Documentation</a></li>
+    </ul>
+    <a class="gh-btn" href="https://github.com/Efficient-3D-Kernels/Efficient-3D-Kernels-for-molecular-property-prediction" target="_blank" rel="noopener">View on GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="page-header">
+      <p class="eyebrow">Implementation Progress</p>
+      <h1>Status, benchmarks, and demonstrations</h1>
+      <p class="subtitle">Approximately 60% complete. Verified on three independent domains.</p>
+    </div>
+
+    <section>
+      <h2>Module status</h2>
+      <table>
+        <thead>
+          <tr><th>Module / Component</th><th>Current state</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Data ingestion &amp; pipeline</td>
+            <td>Preprocessing, tokenization, train–validation split</td>
+            <td><span class="status-tag status-functional">Functional</span></td>
+          </tr>
+          <tr>
+            <td>Core model architecture</td>
+            <td>Baseline &amp; proposed GNCCP architecture implemented</td>
+            <td><span class="status-tag status-functional">Functional</span></td>
+          </tr>
+          <tr>
+            <td>Training &amp; optimization</td>
+            <td>Loss formulation, backpropagation, optimizer loop</td>
+            <td><span class="status-tag status-progress">In progress</span></td>
+          </tr>
+          <tr>
+            <td>Module integration</td>
+            <td>Data loader integrated with core model</td>
+            <td><span class="status-tag status-integrated">Integrated</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Benchmark results</h2>
+
+      <div class="result-block">
+        <h3>Social network — Stanford SNAP CollegeMsg</h3>
+        <p>1,899 users, 59,835 temporal interactions; 40 common active users selected for controlled-perturbation matching (L = 30).</p>
+        <div class="result-stats">
+          <div><span class="stat">50–100%</span><span class="label">Proposed accuracy across 0–30% perturbation</span></div>
+          <div><span class="stat">56–58%</span><span class="label">Fewer optimization iterations vs. baseline</span></div>
+        </div>
+      </div>
+
+      <div class="result-block">
+        <h3>Drosophila brain — Hemibrain vs. FlyWire/FAFB</h3>
+        <p>Mushroom body ROI compared across two independent flies (~4.4K vs. ~9.9K neurons); tested on statistically matched ~300-neuron subgraphs due to full-graph scale.</p>
+        <div class="result-stats">
+          <div><span class="stat">6.1×</span><span class="label">Faster (83s → 14s), identical match quality</span></div>
+        </div>
+      </div>
+
+      <div class="result-block">
+        <h3>MOF crystal screening — QMOF database</h3>
+        <p>20,372 DFT-relaxed structures screened for the Zr₆ bridging-carboxylate motif; Stage 1 filters chemistry, Stage 2 verifies geometry (RMSD ≤ 2.0 Å).</p>
+        <div class="result-stats">
+          <div><span class="stat">42×</span><span class="label">Rank-1 factorization speedup at N=500</span></div>
+          <div><span class="stat">1.000 AUC</span><span class="label">Stage 1 chemistry separation</span></div>
+          <div><span class="stat">7.3%</span><span class="label">Pass Stage 2 geometric verification</span></div>
+          <div><span class="stat">~53 min</span><span class="label">Full 20,372-structure sweep, standard laptop</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Demonstration videos</h2>
+      <p class="prose">Recorded walkthroughs of the pipeline running on each domain. Videos to be added as each demonstration is finalized.</p>
+      <div class="video-grid">
+        <div class="video-placeholder">
+          <div class="icon">▶</div>
+          <div class="domain">MOF Screening Demo</div>
+          <div class="note">Coming soon</div>
+        </div>
+        <div class="video-placeholder">
+          <div class="icon">▶</div>
+          <div class="domain">Drosophila Brain Matching Demo</div>
+          <div class="note">Coming soon</div>
+        </div>
+        <div class="video-placeholder">
+          <div class="icon">▶</div>
+          <div class="domain">Social Network Matching Demo</div>
+          <div class="note">Coming soon</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Cross-Domain Weighted Graph Matching Project · Department of Computer Science and Engineering · Amrita Vishwa Vidyapeetham, Coimbatore
+  </div>
+</footer>
+
+</body>
+</html>

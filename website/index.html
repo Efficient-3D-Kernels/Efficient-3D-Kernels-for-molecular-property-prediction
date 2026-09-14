@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cross-Domain Weighted Graph Matching — Project Portal</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">Cross-Domain Graph Matching <small>· Team 11</small></a>
+    <ul class="nav-links">
+      <li><a href="index.html" aria-current="page">Home</a></li>
+      <li><a href="methodology.html">Methodology</a></li>
+      <li><a href="team.html">Team</a></li>
+      <li><a href="progress.html">Progress</a></li>
+      <li><a href="docs.html">Documentation</a></li>
+    </ul>
+    <a class="gh-btn" href="https://github.com/Efficient-3D-Kernels/Efficient-3D-Kernels-for-molecular-property-prediction" target="_blank" rel="noopener">View on GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <section class="hero">
+      <p class="eyebrow">23CSE498 — Project Phase 2</p>
+      <h1>Cross-Domain Weighted Graph Matching Using an Enhanced GNCCP Optimization Framework</h1>
+      <p class="abstract">We match subgraphs of a specified size across two weighted graphs by combining a Frank-Wolfe-optimized GNCCP relaxation for topological correspondence with a Kabsch-based 3D verification stage. A single pipeline is validated across three unrelated domains — temporal social networks, Drosophila brain connectomes, and molecular crystal structures — without changing the underlying matching algorithm.</p>
+      <p class="hero-meta">Guide: Dr. T Ramraj, Assistant Professor (Sl. Gd), Department of CSE, Amrita Vishwa Vidyapeetham, Coimbatore</p>
+    </section>
+
+    <section class="domain-band">
+      <div>
+        <span class="stat">1,899 users</span>
+        <span class="label">Stanford SNAP CollegeMsg social network — temporal interaction matching</span>
+      </div>
+      <div>
+        <span class="stat">~9.9K neurons</span>
+        <span class="label">Hemibrain / FlyWire Drosophila connectome — cross-fly neuron correspondence</span>
+      </div>
+      <div>
+        <span class="stat">20,372 MOFs</span>
+        <span class="label">QMOF crystal database — Zr₆ bridging-carboxylate motif screening</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Explore the project</h2>
+      <div class="section-links">
+        <a href="methodology.html">
+          <h3>Methodology</h3>
+          <p>The three-stage pipeline: 2D topological filtering via GNCCP, 3D spatial verification via Kabsch alignment, and hybrid kernel fusion.</p>
+        </a>
+        <a href="progress.html">
+          <h3>Progress &amp; Demonstrations</h3>
+          <p>Implementation status, benchmark results across all three domains, and demo video placeholders.</p>
+        </a>
+        <a href="team.html">
+          <h3>Team</h3>
+          <p>Student contributors, register numbers, and project guide.</p>
+        </a>
+        <a href="docs.html">
+          <h3>Documentation</h3>
+          <p>Theoretical foundations paper, source repository, and reference material.</p>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Problem statement</h2>
+      <div class="prose">
+        <p>Given two labeled weighted graphs <em>G</em> and <em>H</em> of size <em>M</em> and <em>N</em>, and an integer <em>L</em> ≤ <em>M</em> ≤ <em>N</em>, Weighted Common Subgraph (WCS) matching seeks the partial permutation matrix that identifies the <em>L</em> most structurally and semantically similar vertices between the two graphs. The problem is NP-hard in general, and existing two-step schemes (match everything, then rank) are not consistent with the joint optimum.</p>
+        <p>This project targets an approximate solver that (a) scales to graphs with thousands of nodes, (b) generalizes across domains with heterogeneous edge semantics, and (c) optionally incorporates 3D spatial coordinates when available, without requiring a domain-specific redesign of the core algorithm.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Cross-Domain Weighted Graph Matching Project · Department of Computer Science and Engineering · Amrita Vishwa Vidyapeetham, Coimbatore
+  </div>
+</footer>
+
+</body>
+</html>

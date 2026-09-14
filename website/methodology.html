@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology — Cross-Domain Graph Matching</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">Cross-Domain Graph Matching <small>· Team 11</small></a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="methodology.html" aria-current="page">Methodology</a></li>
+      <li><a href="team.html">Team</a></li>
+      <li><a href="progress.html">Progress</a></li>
+      <li><a href="docs.html">Documentation</a></li>
+    </ul>
+    <a class="gh-btn" href="https://github.com/Efficient-3D-Kernels/Efficient-3D-Kernels-for-molecular-property-prediction" target="_blank" rel="noopener">View on GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="page-header">
+      <p class="eyebrow">Methodology</p>
+      <h1>A hierarchical 2D–3D matching pipeline</h1>
+      <p class="subtitle">One algorithm, three stages, applied without modification across social, biological, and molecular graphs.</p>
+    </div>
+
+    <section>
+      <div class="stage">
+        <div class="stage-num">01</div>
+        <div>
+          <h3>2D Topological Filter — GNCCP</h3>
+          <p>Formulates matching as a Weighted Common Subgraph (WCS) problem over the partial permutation polytope, solved via the Graduated Non-Convexity and Concavity Procedure (GNCCP) with Frank-Wolfe optimization.</p>
+          <ul>
+            <li>Rank-one factorization of the co-matching indicator matrix <strong>U</strong> reduces gradient computation from O(n³) to O(n²) per evaluation.</li>
+            <li>Frank-Wolfe direction is solved exactly via the Hungarian algorithm at each inner iteration.</li>
+            <li>Frank-Wolfe duality gap provides a certified early-termination criterion.</li>
+            <li>Output: a bijective node correspondence matrix <strong>X*</strong> and a topological similarity score.</li>
+          </ul>
+          <span class="formula">U = X · 1ₙₓₙ · Xᵀ = r rᵀ &nbsp;→&nbsp; O(MN² + M²N) reduced to O(MN + M²)</span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">02</div>
+        <div>
+          <h3>3D Spatial Verification — Kabsch Alignment</h3>
+          <p>The bijective correspondence from Stage 1 is reused directly: matched atom or node pairs are extracted, centered, and aligned with a single closed-form rigid rotation.</p>
+          <ul>
+            <li>Cross-covariance matrix is fixed at 3×3 regardless of the number of matched points, so its SVD costs O(1).</li>
+            <li>Total Stage 2 cost is O(n) — dominated by forming the covariance matrix, not by the alignment itself.</li>
+            <li>Output: optimal rotation, translation, and RMSD — the physical plausibility check that Stage 1 alone cannot provide.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">03</div>
+        <div>
+          <h3>Hybrid Kernel Fusion</h3>
+          <p>Topological similarity (k₂D) and geometric similarity (k₃D) are combined into a single weighted kernel, cross-validated per target domain.</p>
+          <ul>
+            <li>k_hybrid = (1 − β)·k₂D + β·k₃D, with β tuned per application.</li>
+            <li>Stage 1 acts as a cheap search-space reduction gate; only candidates above a similarity threshold proceed to the O(n) Stage 2 check.</li>
+            <li>Downstream classification (e.g. SVM) uses the fused Gram matrix for tasks such as motif verification or structure retrieval.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Why one pipeline generalizes across domains</h2>
+      <div class="prose">
+        <p>The formulation only requires a weighted adjacency matrix and, optionally, 3D coordinates — nothing domain-specific. A temporal social-interaction graph, a neuron connectivity graph, and a crystal bond graph are all just weighted adjacency matrices to Stage 1. Stage 2 activates only where 3D coordinates exist (Drosophila connectomes, MOF crystal structures), and is skipped for domains like social networks where no physical embedding applies.</p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Cross-Domain Weighted Graph Matching Project · Department of Computer Science and Engineering · Amrita Vishwa Vidyapeetham, Coimbatore
+  </div>
+</footer>
+
+</body>
+</html>
