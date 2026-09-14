@@ -1,0 +1,3 @@
+Users,Matching Size,Alpha,Method,Graph Pair,Accuracy (%),Objective,Runtime (s),Iterations,Kernel,Actual Matches,Ground Truth
+100,75,0.7,Enhanced GNCCP,Early vs Later CollegeMsg,,3.202874243205569,8.301752999999735,486,0.958194025281064,75,Unavailable
+400,300,0.7,Enhanced GNCCP,Early vs Later CollegeMsg,,19.702693477256254,127.773050900003,479,0.9364345523377937,300,Unavailable
